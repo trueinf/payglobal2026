@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "strada-sys",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd services/strada-sys && ../../.venv/bin/uvicorn app.main:app --port 8081 --reload"],
+      "port": 8081
+    },
+    {
+      "name": "runtime",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd services/runtime && ../../.venv/bin/uvicorn app.main:app --port 8080 --reload"],
+      "port": 8080
+    },
+    {
+      "name": "workspace",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/workspace", "run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "strada-pay",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "apps/strada-pay", "run", "dev"],
+      "port": 5174
+    }
+  ]
+}

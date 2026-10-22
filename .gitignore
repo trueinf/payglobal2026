@@ -1,0 +1,9 @@
+node_modules
+dist
+.pg
+.env
+__pycache__
+*.pyc
+.replay.json
+.venv/
+.DS_Store
