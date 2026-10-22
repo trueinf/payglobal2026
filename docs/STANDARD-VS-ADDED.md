@@ -24,3 +24,20 @@ Kept during the screen walkthrough. "Standard" = ships with Dynamics 365 Custome
 | Empty state "No data available." | Standard | (was off-standard wording; fixed) |
 | Monitor → read-only session with live transcript | Standard | |
 | Monitor → Next Best Action card, Agent activity feed, Take over button | Added | |
+
+## 2. Monitor session (supervisor view of a live, assistant-handled chat)
+
+| Element | Status | Note |
+| --- | --- | --- |
+| Monitoring opens its own session tab | Standard | tab label "Monitor: <customer>" and eye icon are ours |
+| Communication panel: header (avatar, name, account · employee ID, timer, sentiment) | Standard | |
+| Monitoring banner with Take over | Standard capability (monitor / join / take over) | banner wording and "handled by Strada Pay assistant" are ours |
+| Transcript bubbles | Standard | |
+| "Recording · Transcription on", Hide/Show Transcript | Standard on voice only | removed on chat (was off-standard) |
+| Active Conversation form: Save, Refresh, Queue, Start time, Related; title; form selector | Standard | |
+| State pill | Standard | shows "Active" while the assistant handles it (was "Assistant"; fixed) |
+| Next best action card | Added | Next Best Action Agent |
+| Agent activity (live) | Added | live agent-run feed; nearest standard equivalent is audit history |
+| Customer → Customer Details card | Standard | enhanced Active Conversation form |
+| Conversation summary section incl. Copilot summary card | Standard | |
+| Copilot pane: Summarize conversation, suggested prompts, disclaimer | Standard | prompt texts are our configuration; header line reads "Live chat · Active" (fixed) |

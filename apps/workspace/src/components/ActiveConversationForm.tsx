@@ -67,7 +67,7 @@ export default function ActiveConversationForm({ conversationId, monitor = false
       </div>
       <div className="formbody">
         <div className="rhead">
-          <div className="title"><span>{cust.name}</span><span className={"pill " + (c.state === "Active" ? "blue" : c.state === "Closed" ? "green" : "")}>{c.state}</span></div>
+          <div className="title"><span>{cust.name}</span><span className={"pill " + (c.state === "Active" || c.state === "Assistant" ? "blue" : c.state === "Closed" ? "green" : "")}>{c.state === "Assistant" ? "Active" : c.state}</span></div>
           <div className="sub"><b>{closed ? "Closed Conversation" : "Active Conversation"}</b> · Conversation <ChevronDown16Regular /></div>
         </div>
 

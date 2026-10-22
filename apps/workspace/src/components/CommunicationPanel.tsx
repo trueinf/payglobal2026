@@ -107,11 +107,11 @@ export default function CommunicationPanel({ conversationId, monitor = false }: 
       </div>}
 
       <div className="thd">
-        <span className="t">Transcript</span>
-        {c.recording && <span className="rec"><span className="dot" />Recording · Transcription on</span>}
-        <button className="link" onClick={() => setShowT(!showT)}>{showT ? "Hide Transcript" : "Show Transcript"}</button>
+        <span className="t">{c.channel === "voice" ? "Transcript" : "Conversation"}</span>
+        {c.channel === "voice" && c.recording && <span className="rec"><span className="dot" />Recording · Transcription on</span>}
+        {c.channel === "voice" && <button className="link" onClick={() => setShowT(!showT)}>{showT ? "Hide Transcript" : "Show Transcript"}</button>}
       </div>
-      {showT && (
+      {(showT || c.channel !== "voice") && (
         <div className="transcript">
           {lines.map(l => l.who === "System" ? <div key={l.id} className="sys">{l.text}</div> : (
             <div key={l.id} className={"tl-msg " + (l.who === "Customer" ? "cust" : "rep")}>

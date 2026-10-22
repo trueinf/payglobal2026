@@ -108,7 +108,7 @@ function CopilotPane({ c }: { c: Case | null }) {
       <div className="pb">
         {conv && !chat.length && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>{conv.channel === "voice" ? "Live call" : "Live chat"} · {conv.state}</div>
+            <div style={{ fontSize: 15, fontWeight: 600 }}>{conv.channel === "voice" ? "Live call" : "Live chat"} · {conv.state === "Assistant" ? "Active" : conv.state}</div>
             <div className="mini">Copilot is reading the transcript as it arrives.</div>
             <Button appearance="primary" icon={<Sparkle20Filled />} disabled={convBusy} onClick={() => askConv("Summarize conversation")}>{convBusy ? "Working…" : "Summarize conversation"}</Button>
           </div>
