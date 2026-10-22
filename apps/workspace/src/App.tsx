@@ -14,6 +14,7 @@ import CommunicationPanel from "./components/CommunicationPanel";
 import IncomingNotification from "./components/IncomingNotification";
 import DemoPanel from "./components/DemoPanel";
 import { api } from "./api";
+import { accounts, contacts } from "./data";
 import { truncate } from "./util";
 
 export default function App() {
@@ -92,7 +93,7 @@ export default function App() {
           return (
             <div key={s.id} className={"sesstab" + (active ? " active" : "")} onClick={() => dispatch({ type: "selectSession", id: s.id })} title={s.title}>
               {s.kind === "home" ? (active ? <Home20Filled /> : <Home20Regular />) : s.kind === "inbox" ? (active ? <Mail20Filled /> : <Mail20Regular />) : s.conversationId ? (s.monitor ? <Eye20Regular /> : state.conversations.find(c => c.id === s.conversationId)?.channel === "chat" ? <Chat20Regular /> : <Call20Regular />) : <Wrench20Regular />}
-              <span className="t">{truncate(s.title, 26)}</span>
+              <span className="t">{truncate(s.tabs[0]?.kind === "account" ? (accounts.find(a => a.id === (s.tabs[0] as any).accountId)?.name ?? s.title) : s.tabs[0]?.kind === "contact" ? (contacts.find(c => c.id === (s.tabs[0] as any).contactId)?.name ?? s.title) : s.title, 26)}</span>
               {s.kind === "record" && <span className="x" onClick={e => { e.stopPropagation(); closeSession(s.id); }}><Dismiss16Regular /></span>}
             </div>
           );

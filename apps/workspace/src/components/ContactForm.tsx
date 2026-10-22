@@ -3,6 +3,7 @@ import { ArrowLeft20Regular, Save20Regular, SaveArrowRight20Regular, MoreVertica
 import { useStore } from "../store";
 import { accounts, contacts } from "../data";
 import { fmtDateTime } from "../util";
+import ClientBrief from "./ClientBrief";
 
 export default function ContactForm({ contactId, accountId }: { contactId?: string; accountId?: string }) {
   const { state, dispatch } = useStore();
@@ -29,6 +30,7 @@ export default function ContactForm({ contactId, accountId }: { contactId?: stri
           <div className="sub"><b>{isOwner ? "User" : contact ? "Contact" : "Account"}</b> · {isOwner ? "User" : contact ? "Contact" : "Account"} <ChevronDown16Regular /></div>
         </div>
         <div className="ftabs"><span className="ftab active">Summary</span><span className="ftab">Details</span><span className="ftab">Cases</span></div>
+        {account && !contact && !isOwner && <ClientBrief accountId={account.id} />}
         <div className="cols2">
           <div className="sec"><h3>{isOwner ? "User Info" : contact ? "Contact Information" : "Account Information"}</h3>
             {rows.map(([l, v]) => <div key={l} className="frow"><span className="l">{l}</span><div className="fval">{v}</div></div>)}

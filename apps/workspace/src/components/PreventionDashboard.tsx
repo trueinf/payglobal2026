@@ -4,6 +4,7 @@ import { ArrowClockwise20Regular, MoreVertical20Regular, ChevronDown16Regular, S
 import { useStore } from "../store";
 import { accounts, contacts, queues } from "../data";
 import { fmtDateTime, fmtTime, isToday } from "../util";
+import { IntentsPanel } from "./ClientBrief";
 
 /** Payroll Prevention Dashboard — what the event-driven agents did before anyone called:
  *  Sentinel alerts, incidents with their root cause, and Day-7 verifications. */
@@ -81,6 +82,25 @@ export default function PreventionDashboard() {
       </div>
 
       <div className="card grid">
+        <div className="hd"><span className="t">Client briefs <span className="mini">· Client Insight Agent</span></span></div>
+        <table className="dg">
+          <thead><tr><th>Account</th><th>Headline</th><th>Top recommendation</th><th>Written</th><th></th></tr></thead>
+          <tbody>
+            {accounts.map(a => { const ins = state.insights.find(i => i.accountId === a.id); return (
+              <tr key={a.id}>
+                <td><a onClick={() => dispatch({ type: "openTab", tab: { id: "ac-" + a.id, kind: "account", accountId: a.id } })}>{a.name}</a></td>
+                <td style={{ maxWidth: 480, whiteSpace: "normal" }}>{ins?.brief.headline ?? "—"}</td>
+                <td style={{ maxWidth: 420, whiteSpace: "normal" }}>{ins?.brief.recommendations[0]?.action ?? "—"}</td>
+                <td>{ins ? fmtDateTime(new Date(ins.brief.at)) : "—"}</td>
+                <td><a onClick={() => api_brief(dispatch, a.id)}>{ins ? "Refresh" : "Write"}</a></td>
+              </tr>); })}
+          </tbody>
+        </table>
+      </div>
+
+      <IntentsPanel />
+
+      <div className="card grid">
         <div className="hd"><span className="t">Day-7 verifications <ChevronDown16Regular /></span><button className="cmd"><MoreVertical20Regular /></button></div>
         <table className="dg">
           <thead><tr><th style={{ width: 36 }}><Checkbox /></th><th>Case</th><th>Customer</th><th>Remedy</th><th>Expected settlement</th><th>Outcome</th><th>Detail</th><th>Queue</th></tr></thead>
@@ -111,6 +131,11 @@ const OUTCOME: Record<string, string> = { settled: "Settled", on_track: "On trac
 
 function Kpi({ label, value, sub }: { label: string; value: number; sub: string }) {
   return <div className="card kpi"><div className="v">{value}</div><div className="l">{label}</div><div className="s">{sub}</div></div>;
+}
+async function api_brief(dispatch: any, accountId: string) {
+  const { api } = await import("../api");
+  dispatch({ type: "toast", text: "Client Insight Agent is writing the brief…" });
+  api.insight(accountId).catch((e: any) => dispatch({ type: "toast", text: e.message }));
 }
 async function api_refresh(dispatch: any) {
   const { api } = await import("../api");

@@ -112,6 +112,54 @@ Presenter controls (workspace, not product UI): `Ctrl/Cmd+Shift+D` opens the dem
 
 ---
 
-## Not yet built **[gap]**
+## Identity & Risk Agent — phase 3
 
-Customer Intent Agent, Quality Evaluation Agent, Identity & Risk (verification only today), Client Insight, Garnishment Order Reader.
+**Trigger** Any sensitive action in an employee conversation — today a bank-details change through the Strada Pay assistant (chat or voice); verification outcomes are logged on every conversation.
+
+**Story** Victor Nguyen (Harbor Point) chats: "change my direct deposit to a new bank", verifies with SSN‑4, reads out a routing and account at a different bank. Before writing anything the agent reads the signals: address changed 15 days ago, new institution, verified by SSN‑4 only on chat, an earlier blocked attempt → **High risk → hold**. The assistant tells Victor a specialist will call him back on the number on file and offers a transfer; nothing is changed. Medium risk would have sent a one-time code to the phone on file (step-up) and proceeded once read back; Low proceeds. The assessment sits on the conversation and the case with the signals, and in `identity_events`.
+
+**What people see** The *Identity & risk* card on the Active Conversation form and the case (risk, control, signals, what the employee was told); the timeline note; toast "High risk — change held for call-back".
+
+---
+
+## Garnishment Order Reader — phase 3
+
+**Trigger** Cases with a garnishment intent on creation, or ⋮ → *Read garnishment order*.
+
+**Story** Elena Petrova's duplicate deduction: the agent reads the amended IWO as received from Washington DCS (the document, not the keyed summary), extracts the terms ($312/week, case WA‑CS‑77821, 60 % limit), recognises it as an **amendment replacing GRN‑2291** ("This AMENDED order replaces the IWO dated 03/04/2026"), checks the CCPA limit against her actual disposable earnings ($312 of a $639.71 maximum — within), and finds the discrepancy: both orders are active and the 10/21 payslip shows two $312 deductions. Setup/correction steps: end-date the original, keep the amended order as the only active one, refund $312 on the next pay, single remittance. Reply to Elena drafted.
+
+**What people see** The *Garnishment order* card (terms, relationship, CCPA check, discrepancies, steps, reply); timeline note; summary/highlights rewritten; toast "amendment of an existing order — refund $312.00 due".
+
+---
+
+## Quality Evaluation Agent (Microsoft) — phase 3
+
+**Trigger** Every `conversation.closed` (also on demand from a closed conversation).
+
+**Story** Scores the transcript 0–5 on seven criteria with quoted evidence, separately for the assistant's part and the representative's part (n/a when one did not take part), with coaching notes a supervisor can use ("before transferring, confirm the employee's preferred next step in one sentence…") and compliance flags. On Tom's seeded call: assistant 4.6/5, closure 3/5 with the reason.
+
+**What people see** The *Quality evaluation* card on the Closed Conversation form (scores table, coaching, flags); a note on the case; toast with both scores.
+
+---
+
+## Client Insight Agent — phase 3
+
+**Trigger** *Write the brief* on an Account, or from the Prevention dashboard's *Client briefs* grid.
+
+**Story** For Meridian Health Partners over 14 days: "4 employees in BW‑NUR affected by the bank return incident; 1 pay-group incident open", drivers by intent, what the agents prevented (alerts and proactive cases), incidents with root cause, open items with dates, and three recommendations each tied to a cause in the data (e.g. a pre-import validation that preserves leading zeros before Workday bank-details imports are committed), plus the message to the payroll lead ready to copy.
+
+**What people see** The *Client brief* card on the Account form; the *Client briefs* grid on the Prevention dashboard (headline, top recommendation, written when).
+
+---
+
+## Customer Intent Agent (Microsoft) — phase 3
+
+**Trigger** *Discover intents* on the Prevention dashboard.
+
+**Story** Groups the period's contacts into intents in the employee's terms, keeps the existing labels where they fit, marks new ones as *Proposed*, counts and trends them, and lists the gaps — intents with no agent script or article (e.g. payslip variance, employee data change) — which is what the knowledge and script backlog should be built from.
+
+**What people see** The *Customer intents* grid on the Prevention dashboard with Script/Article columns and the gaps line.
+
+---
+
+All agents in the use-case list are now built; use this document for the use-case walkthrough.

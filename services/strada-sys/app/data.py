@@ -97,6 +97,29 @@ GARNISHMENT_ORDERS: dict[str, list[dict]] = {
     ]
 }
 
+# the amended order as received from the agency (what the Garnishment Order Reader reads)
+ORDER_DOCUMENTS: dict[str, str] = {
+    "GRN-2291-B": """WASHINGTON STATE DEPARTMENT OF SOCIAL AND HEALTH SERVICES — DIVISION OF CHILD SUPPORT
+INCOME WITHHOLDING FOR SUPPORT — AMENDED IWO
+Date of notice: 10/01/2026                      DCS case number: WA-CS-77821
+Employer/Income withholder: Cascade Foods (via Strada Payroll)    FEIN: 91-1234567
+Employee/Obligor: ELENA PETROVA                 SSN: xxx-xx-4480     Employee ID: CF-51877
+Child(ren): one (1)                              Remittance ID: WA-CS-77821
+
+ORDER INFORMATION
+  This AMENDED order replaces the IWO dated 03/04/2026 for the same case number.
+  Current child support:            $312.00 per week
+  Past-due child support (arrears): $0.00            Arrears greater than 12 weeks: No
+  Medical support:                   not ordered
+  Total amount to withhold:          $312.00 per weekly pay period
+  Other family supported by obligor: No
+  Withholding limit: Do not withhold more than 60% of the employee's disposable earnings (CCPA; 65% if arrears > 12 weeks).
+
+REMITTANCE: Washington State Support Registry, PO Box 45868, Olympia WA 98504-5868. Include case number WA-CS-77821.
+Begin withholding no later than the first pay period that occurs 7 business days after the date of this notice.
+Employer contact: DCS Employer Relations, 1-800-591-2760.""",
+}
+
 TAX_DOCUMENTS: dict[str, list[dict]] = {emp: [dict(year=2025, type="W-2", status="available", issued="2026-01-28", reissued=None), dict(year=2024, type="W-2", status="available", issued="2025-01-27", reissued=None)] for emp in EMPLOYEES}
 
 STATE_RULES: dict[str, dict[str, Any]] = {

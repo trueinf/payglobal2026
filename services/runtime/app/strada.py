@@ -25,6 +25,8 @@ class StradaSystems:
     async def ach_returns(self, pay_group: str | None = None, pay_date: str | None = None): return await self._get("/pay/ach/returns", pay_group=pay_group, pay_date=pay_date)
     async def timesheets(self, pay_group: str | None = None, status: str | None = None): return await self._get("/time/timesheets", pay_group=pay_group, status=status)
     async def garnishment_orders(self, employee_id: str): return await self._get(f"/garnishments/orders/{employee_id}")
+    async def order_document(self, employee_id: str, ref: str): return await self._get(f"/garnishments/orders/{employee_id}/documents/{ref}")
+    async def audit(self, employee_id: str | None = None): return await self._get("/audit", employee_id=employee_id)
     async def tax_documents(self, employee_id: str): return await self._get(f"/tax/documents/{employee_id}")
     async def state_rules(self, state: str): return await self._get(f"/tax/rules/{state}")
     async def assist_case(self, reference: str): return await self._get(f"/assist/cases/{reference}")

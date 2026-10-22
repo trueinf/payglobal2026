@@ -12,7 +12,7 @@ const ITEM: Record<string, string> = { pay_date: "Pay date", amount: "Amount", r
 /** What the case-side agents found: variance explanation, state & tax rules, and the Strada Assist referral package. */
 export default function AgentFindings({ c }: { c: Case }) {
   const { state, dispatch } = useStore();
-  const v = c.findings?.variance; const r = c.findings?.rules;
+  const v = c.findings?.variance; const r = c.findings?.rules; const o = c.findings?.order; const risk = c.risk;
   const refs = state.referrals.filter(x => x.caseId === c.id);
   const [busy, setBusy] = useState<string | null>(null);
   const rerun = async (agent: "variance" | "rules") => { setBusy(agent); try { await api.caseAgent(c.id, agent); } catch (e: any) { dispatch({ type: "toast", text: e.message }); } finally { setBusy(null); } };
@@ -21,9 +21,29 @@ export default function AgentFindings({ c }: { c: Case }) {
     if (inbound) { dispatch({ type: "setDraft", draft: { activityId: inbound.id, text } }); dispatch({ type: "openTab", tab: { id: "em-" + inbound.id, kind: "email", activityId: inbound.id } }); }
     else { navigator.clipboard?.writeText(text); dispatch({ type: "toast", text: "Reply copied — no inbound email on this case to reply to" }); }
   };
-  if (!v && !r && !refs.length) return null;
+  if (!v && !r && !o && !risk && !refs.length) return null;
   return (
     <>
+      {risk && <RiskCard risk={risk} />}
+      {o && (
+        <div className="sec">
+          <h3>Garnishment order</h3>
+          <div className={"nba" + (o.discrepancies.length ? " alert" : "")}>
+            <div className="h"><Sparkle20Filled style={{ color: "var(--copilot)" }} /> Garnishment Order Reader <span className="pill">{o.ref}</span><span className={"pill " + (o.relationship.kind === "duplicate" ? "red" : o.relationship.kind === "amendment" ? "amber" : "blue")}>{o.relationship.kind}{o.relationship.replaces ? ` of ${o.relationship.replaces}` : ""}</span>{o.refund_due ? <span className="pill red">Refund ${o.refund_due.toFixed(2)}</span> : null}<span className="sp" />
+              <Tooltip content="Re-read" relationship="label"><button className="iconbtn" style={{ width: 26, height: 26 }} disabled={busy === "order"} onClick={() => rerun("order" as any)}><ArrowClockwise16Regular /></button></Tooltip></div>
+            <div className="cdgrid" style={{ marginTop: 8 }}>
+              <span>Agency</span><b>{o.order.agency}</b><span>Case number</span><b>{o.order.case_number}</b><span>Type</span><b>{o.order.type.replace("_", " ")}</b>
+              <span>Amount</span><b>${o.order.amount.toFixed(2)} {o.order.frequency}{o.order.arrears ? ` · arrears $${o.order.arrears}` : ""}</b>
+              <span>Start</span><b>{o.order.start_rule}</b><span>Limit</span><b>{o.ccpa_check.limit_pct}% of disposable ${o.ccpa_check.disposable_earnings.toFixed(2)} = max ${o.ccpa_check.max_withholding.toFixed(2)} · ordered ${o.ccpa_check.ordered.toFixed(2)} → {o.ccpa_check.within_limit ? "within limit" : "OVER LIMIT"}</b>
+            </div>
+            <div className="why" style={{ marginTop: 8 }}>{o.relationship.reason}</div>
+            {o.discrepancies.length ? <><div className="why" style={{ marginTop: 8 }}><b>Discrepancies with the setup on file</b></div><ul className="plan" style={{ listStyle: "disc" }}>{o.discrepancies.map((d, i) => <li key={i}>{d}</li>)}</ul></> : <div className="why" style={{ marginTop: 8 }}>Setup on file matches the order.</div>}
+            <div className="why" style={{ marginTop: 6 }}><b>Setup / correction</b></div><ol className="plan">{o.setup_actions.map((a, i) => <li key={i}>{a}</li>)}</ol>
+            <div className="reply"><div className="rl">Reply to the employee</div><div className="rt">{o.employee_explanation}</div><Button size="small" appearance="primary" onClick={() => useReply(o.employee_explanation)}>Use this reply</Button></div>
+            <div className="meta">Read {fmtDateTime(new Date(o.at))}</div>
+          </div>
+        </div>
+      )}
       {v && (
         <div className="sec">
           <h3>Payslip comparison</h3>
@@ -61,6 +81,19 @@ export default function AgentFindings({ c }: { c: Case }) {
       {refs.map(ref => <ReferralCard key={ref.id} c={c} ref_={ref} />)}
     </>
   );
+}
+
+export function RiskCard({ risk, compact = false }: { risk: import("../model").RiskAssessment; compact?: boolean }) {
+  const col = risk.risk === "High" ? "red" : risk.risk === "Medium" ? "amber" : "green";
+  const body = (
+    <div className={"nba" + (risk.risk === "High" ? " alert" : "")}>
+      <div className="h"><Sparkle20Filled style={{ color: "var(--copilot)" }} /> Identity &amp; Risk Agent <span className={"pill " + col}>{risk.risk} risk</span><span className="pill">{risk.control === "hold" ? "Change held — call-back" : risk.control === "step_up" ? "One-time code required" : "Proceed"}</span><span className="pill">{risk.action.replace(/_/g, " ")}</span></div>
+      <div className="act">{risk.explanation}</div>
+      <ul className="plan" style={{ listStyle: "disc" }}>{risk.signals.map((x, i) => <li key={i}>{x}</li>)}</ul>
+      <div className="meta">Told the employee: “{risk.employee_message}” · {fmtDateTime(new Date(risk.at))}</div>
+    </div>
+  );
+  return compact ? body : <div className="sec"><h3>Identity &amp; risk</h3>{body}</div>;
 }
 
 function ReferralCard({ c, ref_ }: { c: Case; ref_: Referral }) {

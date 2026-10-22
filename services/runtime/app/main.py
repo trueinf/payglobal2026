@@ -26,9 +26,9 @@ def snake(k: str) -> str:
     if k == "from": return "from_name"
     return re.sub(r"([A-Z])", lambda m: "_" + m.group(1).lower(), k)
 
-from .agents import sentinel, incident_clustering, day7, variance, tax_rules, referral
-EVENT_AGENTS = [sentinel, incident_clustering, day7]
-CASE_AGENTS = {"variance": (variance, variance.INTENTS), "rules": (tax_rules, tax_rules.INTENTS)}
+from .agents import sentinel, incident_clustering, day7, variance, tax_rules, referral, order_reader, quality, client_insight, customer_intent
+EVENT_AGENTS = [sentinel, incident_clustering, day7, quality]
+CASE_AGENTS = {"variance": (variance, variance.INTENTS), "rules": (tax_rules, tax_rules.INTENTS), "order": (order_reader, order_reader.INTENTS)}
 
 async def _case_agents_on_create(ev: dict):
     """Agents that work on a case the moment it exists, by intent."""
@@ -89,6 +89,8 @@ async def bootstrap():
         conversations=ser_all(await db.fetch("select * from conversations order by started_at desc")),
         alerts=ser_all(await db.fetch("select * from alerts order by sent_at desc limit 50")),
         referrals=ser_all(await db.fetch("select * from referrals order by updated_at desc")),
+        insights=ser_all(await db.fetch("select distinct on (account_id) * from client_insights order by account_id, created_at desc")),
+        intents=((await db.one("select value from settings where key = 'intents'")) or {}).get("value"),
         owner=settings.owner, llm="claude" if llm.available() else "rules-fallback",
     )
 
@@ -164,6 +166,23 @@ async def refer(case_id: str, r: ReferralReq):
 
 @app.get("/cases/{case_id}/referrals")
 async def referrals_for(case_id: str): return ser_all(await db.fetch("select * from referrals where case_id = %s order by updated_at desc", case_id))
+
+@app.post("/accounts/{account_id}/insight")
+async def account_insight(account_id: str, days: int = 14):
+    out = await client_insight.run(account_id, days, trigger="manual")
+    if out is None: raise HTTPException(404)
+    return out
+
+@app.get("/accounts/{account_id}/insights")
+async def account_insights(account_id: str): return ser_all(await db.fetch("select * from client_insights where account_id = %s order by created_at desc limit 5", account_id))
+
+@app.post("/intents/discover")
+async def intents_discover(days: int = 14): return await customer_intent.discover(days, trigger="manual")
+
+@app.post("/conversations/{conv_id}/evaluate")
+async def conv_evaluate(conv_id: str):
+    out = await quality.evaluate(conv_id)
+    return out or {}
 
 @app.get("/cases/{case_id}/agent-runs")
 async def runs_for(case_id: str):

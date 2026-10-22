@@ -31,6 +31,8 @@ Phase 2 — the event-driven agents. The **Pay Event Sentinel** reacts to bank r
 
 Phase 2b — agents on the open case. The **Payslip Variance Explainer** diffs the last two payslips and explains every change (flagging the ones that look wrong), the **State & Tax Rules Agent** applies the state rule reference to moves, final pay and address changes (forms, dates, county tax, actions by owner), and the **Complete-Case Referral Agent** builds the Strada Assist package from the systems and the case, stops on what is missing, and submits only when complete. They run on case creation by intent and from the case command bar (⋮ → Refer to Strada Assist / Explain payslip variance / Check state & tax rules); findings appear as cards on the case.
 
+Phase 3 — the remaining agents. **Identity & Risk** gates sensitive actions in the assistant (proceed / one-time code / hold for call-back) from the signals on record; the **Garnishment Order Reader** reads the agency's order document, checks the CCPA limit against real disposable earnings and finds setup discrepancies; **Quality Evaluation** scores every closed conversation with coaching notes; **Client Insight** writes the client payroll lead's period brief with data-tied recommendations (Account form, Prevention dashboard); **Customer Intent** discovers intents and the script/article gaps. All fourteen agents from the use-case list exist; `docs/STORIES.md` is the walkthrough.
+
 `make e2e` runs the whole loop with Playwright (chat path; needs the stack and both apps running).
 
 Try it from a terminal while the workspace is open:
