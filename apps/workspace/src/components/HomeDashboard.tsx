@@ -229,7 +229,7 @@ function Omni() {
                   </tr>
                 );
               })}
-              {!live.length && <tr><td colSpan={9} style={{ textAlign: "center", padding: 40, color: "#616161" }}>No ongoing conversations. Start one from Strada Pay.</td></tr>}
+              {!live.length && <tr><td colSpan={9} style={{ textAlign: "center", padding: 40, color: "#616161" }}>No data available.</td></tr>}
             </tbody>
           </table>
           <div className="pg" style={{ padding: 12, display: "flex" }}><span>{live.length ? `1 - ${live.length} of ${live.length}` : "0 - 0 of 0"} ({row ? 1 : 0} selected)</span><span className="sp" style={{ marginLeft: "auto" }}>Page 1</span></div>
