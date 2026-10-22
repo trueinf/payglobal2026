@@ -13,8 +13,11 @@ export function revive<T = any>(v: any): T {
   return v;
 }
 
+const DEMO_SECRET: string | undefined = (import.meta as any).env?.VITE_DEMO_SECRET;
 async function req(method: string, path: string, body?: any) {
-  const r = await fetch(BASE + path, { method, headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (DEMO_SECRET && path.startsWith("/demo/")) headers["x-demo-secret"] = DEMO_SECRET;
+  const r = await fetch(BASE + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
   if (!r.ok) { let d: any = r.statusText; try { d = (await r.json()).detail ?? d; } catch {} throw new Error(typeof d === "string" ? d : JSON.stringify(d)); }
   return revive(await r.json());
 }

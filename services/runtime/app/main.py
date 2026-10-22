@@ -57,13 +57,22 @@ async def dispatch_event(ev: dict):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await db.init()
+    if settings.migrate_on_start: await db.migrate()
     task = asyncio.create_task(db.listen(dispatch_event))
     yield
     task.cancel(); await db.close()
 
 app = FastAPI(title="Strada runtime", version="0.1", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=[o.strip() for o in settings.cors_origins.split(",")] if settings.cors_origins != "*" else ["*"], allow_methods=["*"], allow_headers=["*"])
 app.include_router(pay_routes.router)
+
+@app.middleware("http")
+async def demo_guard(request, call_next):
+    """Hosted demos: /demo/* mutations need the shared secret (DEMO_SECRET) so nobody resets the day mid-pitch. Unset locally."""
+    if settings.demo_secret and request.url.path.startswith("/demo/") and request.method != "GET" and request.headers.get("x-demo-secret") != settings.demo_secret:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=401, content=dict(detail="demo secret required"))
+    return await call_next(request)
 
 @app.exception_handler(ValueError)
 async def value_error(_, e: ValueError):
@@ -408,10 +417,11 @@ async def list_alerts(contactId: str | None = None, limit: int = 50):
 @app.post("/demo/reset")
 async def reset():
     import subprocess, sys, os
-    seed = os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages", "schema", "seed.py")
+    seed = next(p for p in (os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages", "schema", "seed.py"), os.path.join(os.path.dirname(__file__), "..", "packages", "schema", "seed.py")) if os.path.exists(p))
     subprocess.run([sys.executable, seed, "--dsn", settings.database_url], check=True)
     await db.execute("update settings set value = %s where key = 'demo_clock'", json.dumps(dict(offset_seconds=0)))
-    res = await strada._send("POST", "/demo/reset")
+    try: await strada._send("POST", "/demo/reset")
+    except Exception as e: print("strada-sys reset skipped:", e)
     await hub.broadcast("reset", {})
     return dict(ok=True)
 
