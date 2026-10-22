@@ -6,6 +6,7 @@ import { api } from "../api";
 import { accounts, contacts, queueItems, queues } from "../data";
 import { fmtDate, fmtDateTime } from "../util";
 import NewCaseDialog from "./NewCaseDialog";
+import PreventionDashboard from "./PreventionDashboard";
 
 const AZ = ["All", "#", ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
@@ -30,6 +31,7 @@ export default function HomeDashboard() {
         <div className={"dtab" + (d === "trial" ? " active" : "")} onClick={() => dispatch({ type: "setDashboard", d: "trial" })}>Trial home</div>
         <div className={"dtab" + (d === "rep" ? " active" : "")} onClick={() => dispatch({ type: "setDashboard", d: "rep" })}><TabIcon /> Customer Service Representative Dashboard</div>
         <div className={"dtab" + (d === "omni" ? " active" : "")} onClick={() => dispatch({ type: "setDashboard", d: "omni" })}><TabIcon /> Omnichannel Ongoing Conversations Dashboard</div>
+        <div className={"dtab" + (d === "prevention" ? " active" : "")} onClick={() => dispatch({ type: "setDashboard", d: "prevention" })}><TabIcon /> Payroll Prevention Dashboard</div>
       </div>
       {d === "trial" ? <TrialHome /> : (
         <>
@@ -42,7 +44,7 @@ export default function HomeDashboard() {
             <span className="spacer" />
             <button className="cmd outline"><Share20Regular /> Share <ChevronDown16Regular /></button>
           </div>
-          <div className="title">{d === "rep" ? "Customer Service Representative Dashboard" : "Omnichannel Ongoing Conversations Dashboard"} <ChevronDown20Regular /></div>
+          <div className="title">{d === "rep" ? "Customer Service Representative Dashboard" : d === "prevention" ? "Payroll Prevention Dashboard" : "Omnichannel Ongoing Conversations Dashboard"} <ChevronDown20Regular /></div>
           {d === "rep" ? (
             <div className="scroll">
               <div className="card grid">
@@ -159,7 +161,7 @@ export default function HomeDashboard() {
                 <div className="pg"><span>Rows: 1 - {open.length} of {open.length}</span></div>
               </div>
             </div>
-          ) : <Omni />}
+          ) : d === "prevention" ? <PreventionDashboard /> : <Omni />}
         </>
       )}
       {newCase && <NewCaseDialog onClose={() => setNewCase(false)} />}

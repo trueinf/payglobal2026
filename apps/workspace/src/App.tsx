@@ -12,6 +12,7 @@ import RecordSession from "./components/RecordSession";
 import ProductivityPane from "./components/ProductivityPane";
 import CommunicationPanel from "./components/CommunicationPanel";
 import IncomingNotification from "./components/IncomingNotification";
+import DemoPanel from "./components/DemoPanel";
 import { api } from "./api";
 import { truncate } from "./util";
 
@@ -21,9 +22,13 @@ export default function App() {
   const isHome = session.kind === "home";
   const busy = state.conversations.some(c => c.state === "Active");
 
-  // Ctrl/Cmd+Shift+I re-arms the seeded incoming call (demo helper)
+  const [demo, setDemo] = React.useState(false);
+  // Ctrl/Cmd+Shift+I re-arms the seeded incoming call; Ctrl/Cmd+Shift+D toggles the presenter's demo feeds
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "i") { e.preventDefault(); api.conv.reopen("cv1").catch(() => {}); } };
+    const h = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "i") { e.preventDefault(); api.conv.reopen("cv1").catch(() => {}); }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "d") { e.preventDefault(); setDemo(v => !v); }
+    };
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
   }, []);
 
@@ -108,6 +113,7 @@ export default function App() {
       </div>
 
       <IncomingNotification />
+      {demo && <DemoPanel onClose={() => setDemo(false)} />}
       <div className="toasts">
         {state.toasts.map(t => <div key={t.id} className={"toast " + (t.kind ?? "")}>{t.text}</div>)}
       </div>

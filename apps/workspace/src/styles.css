@@ -301,3 +301,16 @@ ul.plain { margin: 0; padding-left: 18px; } ul.plain li { margin: 2px 0; }
 .pill.red { background: #fde7e9; color: #c4314b; } .pill.amber { background: #fff4ce; color: #6d4a00; }
 .feed { list-style: none; margin: 6px 0 0; padding: 0; font-size: 13px; } .feed li { padding: 4px 0; border-top: 1px solid var(--line); } .feed li:first-child { border-top: 0; }
 .feed .t { display: inline-block; width: 70px; color: #616161; } .feed code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+
+/* ---- prevention dashboard, demo panel (phase 2) ---- */
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.kpi { padding: 14px 18px; } .kpi .v { font-size: 32px; font-weight: 700; line-height: 1.1; } .kpi .l { font-size: 14px; font-weight: 600; margin-top: 4px; } .kpi .s { font-size: 13px; color: #424242; margin-top: 2px; }
+.agentchip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--copilot); white-space: nowrap; }
+.dg td .mini { font-size: 12px; color: #424242; }
+.plan { margin: 8px 0 0; padding-left: 20px; font-size: 14px; } .plan li { margin: 2px 0; }
+.demopanel { position: fixed; left: 18px; bottom: 18px; width: 360px; background: #1f1f1f; color: #fff; border-radius: 8px; padding: 12px 14px; z-index: 60; box-shadow: 0 8px 24px rgba(0,0,0,.3); font-size: 13px; }
+.demopanel .h { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; margin-bottom: 8px; } .demopanel .h .clock { margin-left: auto; font-weight: 400; color: #d0d0d0; }
+.demopanel .h .iconbtn { color: #fff; }
+.demopanel .scen { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; font: inherit; color: #fff; background: #333; border: 0; border-radius: 6px; padding: 8px 10px; margin: 4px 0; cursor: pointer; }
+.demopanel .scen:hover { background: #444; } .demopanel .scen:disabled { opacity: .5; cursor: default; }
+.demopanel .ft { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; color: #bbb; font-size: 12px; }

@@ -13,7 +13,11 @@ export interface Conversation { id: string; channel: "chat" | "voice"; state: "A
 export interface Line { id: number; conversationId: string; who: string; text: string; at: string; }
 export interface SessionStart { conversation: Conversation; contact: Employee; greeting: string | null; voice: { agentId: string | null; signedUrl: string | null; configured: boolean } | null; capabilities: { tts: boolean; stt: boolean; llm: string }; }
 
+export interface AlertRow { id: number; kind: string; title?: string; message: string; sentAt: string; readAt?: string | null; relatedCaseId?: string | null; caseNumber?: string | null; agent?: string; }
+
 export const api = {
+  alerts: (contactId: string): Promise<AlertRow[]> => req("GET", `/pay/alerts/${contactId}`),
+  readAlert: (id: number) => req("POST", `/pay/alerts/${id}/read`),
   employees: (): Promise<Employee[]> => req("GET", "/pay/employees"),
   start: (contactId: string, channel: "chat" | "voice"): Promise<SessionStart> => req("POST", "/pay/sessions", { contactId, channel }),
   get: (id: string): Promise<{ conversation: Conversation; lines: Line[]; case: any }> => req("GET", `/pay/sessions/${id}`),

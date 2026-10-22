@@ -106,8 +106,55 @@ def payslips(employee_id: str, limit: int = 2):
     emp(employee_id); return db.PAYSLIPS.get(employee_id, [])[:limit]
 
 @app.get("/pay/payments/{employee_id}")
-def payment_status(employee_id: str):
-    emp(employee_id); return dict(employee_id=employee_id, **db.PAYMENTS[employee_id])
+def payment_status(employee_id: str, as_of: str | None = None):
+    emp(employee_id); return dict(employee_id=employee_id, **db.payment_as_of(employee_id, as_of))
+
+class Remedy(BaseModel):
+    type: str            # live_check | redeposit
+    reference: str = ""
+    as_of: str           # ISO date/time the remedy was arranged (demo clock)
+    requested_by: str = "runtime"
+
+@app.post("/pay/payments/{employee_id}/remedy")
+async def payment_remedy(employee_id: str, r: Remedy):
+    emp(employee_id)
+    if r.type not in ("live_check", "redeposit"): raise HTTPException(422, "type must be live_check or redeposit")
+    rem = db.set_remedy(employee_id, r.type, r.reference or f"{r.type.upper()}-{uuid.uuid4().hex[:6].upper()}", r.as_of)
+    audit("payment.remedy", r.requested_by, dict(employee_id=employee_id, **rem))
+    await emit("payment.remedy_arranged", dict(employee_id=employee_id, contact_id=db.EMPLOYEES[employee_id]["contact_id"], **rem))
+    return rem
+
+@app.post("/demo/reset")
+def demo_reset():
+    """Back to the seeded day: reload the data module."""
+    import importlib; importlib.reload(db); return dict(ok=True, employees=len(db.EMPLOYEES))
+
+# ---- scenario triggers: the feeds that, in production, arrive from the bank and the time system ----
+class AchFile(BaseModel):
+    pay_group: str = "BW-OPS"; code: str = "R04"; reason: str = "Invalid account number"; employee_ids: list[str] | None = None
+
+@app.post("/demo/scenario/ach-return-file")
+async def scenario_ach(f: AchFile):
+    if f.pay_group not in db.PAY_GROUPS: raise HTTPException(404, "unknown pay group")
+    rows = db.post_ach_return_file(f.pay_group, f.code, f.reason, f.employee_ids)
+    audit("ach.return_file", "bank", dict(pay_group=f.pay_group, returns=len(rows)))
+    for r in rows:
+        await emit("ach.return_posted", dict(contact_id=db.EMPLOYEES[r["employee_id"]]["contact_id"], **r))
+    return dict(posted=len(rows), returns=rows)
+
+class Cutoff(BaseModel):
+    pay_group: str = "WK-PLANT"
+
+@app.post("/demo/scenario/timesheet-cutoff")
+async def scenario_cutoff(c: Cutoff):
+    pg = db.PAY_GROUPS.get(c.pay_group)
+    if not pg: raise HTTPException(404, "unknown pay group")
+    rows = [t for t in db.TIMESHEETS if t["pay_group"] == c.pay_group and t["status"] == "unapproved"]
+    managers = sorted({t["manager"] for t in rows})
+    lead = next((v for v in db.EMPLOYEES.values() if v["account"] == pg["account"] and "client payroll" in (v.get("role") or "")), None)   # the runtime falls back to the account's payroll lead
+    audit("timesheet.cutoff", "time-system", dict(pay_group=c.pay_group, unapproved=len(rows)))
+    await emit("timesheet.unapproved_at_cutoff", dict(pay_group=c.pay_group, client=pg["client"], account_id=pg["account"], cutoff=db.d(0), next_pay_date=pg["next_pay_date"], unapproved=len(rows), hours=sum(t["hours"] for t in rows), managers=managers, employees=[dict(employee_id=t["employee_id"], name=t["name"], hours=t["hours"]) for t in rows], client_contact_id=(lead or {}).get("contact_id")))
+    return dict(pay_group=c.pay_group, unapproved=len(rows), managers=managers)
 
 @app.get("/pay/ach/returns")
 def ach_returns(pay_group: str | None = None, pay_date: str | None = None):

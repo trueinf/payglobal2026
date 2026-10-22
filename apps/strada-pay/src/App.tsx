@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
-import { api, type Employee, type Line, type SessionStart } from "./api";
+import { api, connect, type AlertRow, type Employee, type Line, type SessionStart } from "./api";
 import { playUrl, speakFallback, usePushToTalk, useSessionFeed } from "./session";
 
 type View = { kind: "signin" } | { kind: "home"; me: Employee } | { kind: "chat"; me: Employee; s: SessionStart } | { kind: "call"; me: Employee; s: SessionStart };
@@ -51,8 +51,29 @@ function SignIn({ onPick }: { onPick: (e: Employee) => void }) {
 }
 
 function Home({ me, busy, onChat, onCall }: { me: Employee; busy: boolean; onChat: () => void; onCall: () => void }) {
+  const [alerts, setAlerts] = useState<AlertRow[]>([]);
+  useEffect(() => {
+    let alive = true;
+    const load = () => api.alerts(me.id).then(a => alive && setAlerts(a)).catch(() => {});
+    load();
+    const stop = connect((kind, data) => { if (kind === "alert.created" && data.contactId === me.id) load(); });
+    return () => { alive = false; stop(); };
+  }, [me.id]);
+  const markRead = (a: AlertRow) => { if (!a.readAt) { api.readAlert(a.id).catch(() => {}); setAlerts(x => x.map(y => y.id === a.id ? { ...y, readAt: new Date().toISOString() } : y)); } };
   return (
     <main className="grid">
+      {alerts.length > 0 && (
+        <section className="card notices">
+          <div className="eyebrow">Notifications</div>
+          {alerts.map(a => (
+            <div key={a.id} className={"notice" + (a.readAt ? "" : " unread")} onClick={() => markRead(a)}>
+              <div className="nt"><b>{a.title ?? KIND[a.kind] ?? "Update"}</b><span>{new Date(a.sentAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span></div>
+              <div>{a.message}</div>
+              {a.caseNumber && <div className="muted small">Case {a.caseNumber}</div>}
+            </div>
+          ))}
+        </section>
+      )}
       <section className="card">
         <div className="eyebrow">Welcome back</div>
         <h1>{me.name.split(" ")[0]}</h1>
@@ -193,6 +214,8 @@ function Call({ me, s, onDone }: { me: Employee; s: SessionStart; onDone: () => 
     </main>
   );
 }
+
+const KIND: Record<string, string> = { ach_return: "Your deposit was returned", timesheet_reminder: "Timesheets need approval", status_update: "Update on your case", payslip_ready: "Your payslip is ready", w2_ready: "Your W-2 is ready" };
 
 // ---------------- bits ----------------
 function Bubble({ l }: { l: Line }) {

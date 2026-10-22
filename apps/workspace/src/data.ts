@@ -27,6 +27,9 @@ export const contacts: Contact[] = [
   { id: "c10", name: "Grace Kim", accountId: "a4", employeeId: "CF-52010", email: "grace.kim@cascadefoods.example", state: "WA", payGroup: "SM-OFFICE" },
   { id: "c11", name: "Rachel Moreno", accountId: "a2", employeeId: "MHP-PAYLEAD", email: "rachel.moreno@meridianhp.example", state: "OH", payGroup: "Client payroll lead" },
   { id: "c12", name: "Victor Nguyen", accountId: "a1", employeeId: "HPL-31005", email: "victor.nguyen@harborpoint.example", state: "NJ", payGroup: "BW-OPS" },
+  { id: "c13", name: "Nina Patel", accountId: "a1", employeeId: "HPL-PAYLEAD", email: "nina.patel@harborpoint.example", state: "NJ", payGroup: "Client payroll lead" },
+  { id: "c14", name: "Maria Santos", accountId: "a1", employeeId: "HPL-30920", email: "maria.santos@harborpoint.example", state: "NJ", payGroup: "BW-OPS" },
+  { id: "c15", name: "Derek Cole", accountId: "a1", employeeId: "HPL-30931", email: "derek.cole@harborpoint.example", state: "NJ", payGroup: "BW-OPS" },
 ];
 
 export const queues: Queue[] = [

@@ -69,4 +69,10 @@ export interface Case {
   aiFields?: string[];      // fields predicted by the agent
   summary: string;
   highlights: string[];
+  createdBy?: string;        // agent that opened the case proactively (Pay Event Sentinel, Incident Clustering Agent)
+  remedy?: { type: string; reference?: string; dispatched_at?: string; expected_settlement?: string } | null;
+  verifiedAt?: Date;
+  verification?: { outcome: "settled" | "on_track" | "reopened"; checked_at: string; detail: string; next_check?: string } | null;
+  incident?: { pay_group: string; code: string; affected: string[]; root_cause: string; confidence: string; action_plan?: string[]; employee_action?: string; client_notified_at?: string | null } | null;
 }
+export interface Alert { id: number; contactId: string | null; accountId: string | null; kind: string; channel: string; title?: string; message: string; relatedCaseId?: string | null; agent?: string; sentAt: Date; readAt?: Date | null; }

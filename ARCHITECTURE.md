@@ -30,6 +30,10 @@ Strada-specific: Payslip Variance Explainer, Pay Event Sentinel, Incident Cluste
 
 Human steps are LangGraph interrupts: Accept suggestions, Tier-1 take-over, disposition code before close, article approval. The workspace buttons resume a paused graph.
 
+## Event-driven agents (phase 2)
+
+`main.dispatch_event` fans every `strada.events` row out to the apps and to each agent whose `HANDLES` includes the event type (`agents/sentinel.py`, `agents/incident_clustering.py`, `agents/day7.py`); `events.processed_by` records who handled it. The feeds that would come from the bank and the time system are `POST /demo/scenario/{ach-return-file|timesheet-cutoff}` (proxied to strada-sys, which posts the events), and the demo clock (`advance-7-days`) emits `clock.advanced`. Remedies live in strada-sys (`POST /pay/payments/{id}/remedy`; `GET /pay/payments/{id}?as_of=` shows settlement as of the demo clock, and a redeposit to an uncorrected account fails). Alerts (`strada.alerts`, `alert.created` on the WebSocket) are what the employee and the client contact receive; Strada Pay shows them on its home.
+
 ## Events
 
 `strada.events` is the stream. Writers: the runtime (case created, conversation ended, case resolved), strada-sys (ACH return posted, timesheet unapproved at cut-off, payslip published) and the demo clock. Readers: Sentinel, Incident Clustering, Day-7, Knowledge Management. The runtime fans out every event to connected apps over WebSocket.
