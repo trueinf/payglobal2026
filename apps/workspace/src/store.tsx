@@ -13,6 +13,7 @@ export type RecordTab =
   | { id: string; kind: "conversation"; conversationId: string };
 
 export interface Session { id: string; kind: "home" | "inbox" | "record"; title: string; tabs: RecordTab[]; activeTabId: string | null; conversationId?: string; monitor?: boolean; }
+export interface Referral { id: number; caseId: string; requestType: string; status: "preparing" | "incomplete" | "submitted" | "accepted"; checklist: { item: string; satisfied: boolean; source?: string | null; value?: any; who?: string | null }[]; complete: boolean; missing: string[]; stradaReference?: string | null; expectedBy?: string | null; updatedAt: Date; }
 export interface NBA { intent: string; stage: string; nextBestAction: string; rationale: string; risk: "Low" | "Medium" | "High"; intervene: boolean; interveneReason?: string; sentiment?: string; suggestedOpening?: string; }
 export type PaneTool = "copilot" | "scripts" | "knowledge";
 export interface Toast { id: number; text: string; kind?: "success" | "info"; }
@@ -27,6 +28,7 @@ export interface AppState {
   articles: KnowledgeArticle[];
   conversations: Conversation[];
   alerts: Alert[];
+  referrals: Referral[];
   transcript: Record<string, TranscriptLine[]>;
   agentEvents: AgentEvent[];
   sessions: Session[];
@@ -48,6 +50,7 @@ type Action =
   | { type: "upsertArticle"; a: KnowledgeArticle }
   | { type: "upsertConversation"; c: Conversation }
   | { type: "upsertAlert"; a: Alert }
+  | { type: "upsertReferral"; r: Referral }
   | { type: "transcriptLine"; l: TranscriptLine }
   | { type: "agentEvent"; e: AgentEvent }
   | { type: "selectSession"; id: string }
@@ -79,7 +82,7 @@ export const nextId = (p = "x") => `${p}${++seq}`;
 
 const initial: AppState = {
   loaded: false, connected: false, llm: "",
-  cases: [], activities: [], articles: [], conversations: [], alerts: [], transcript: {}, agentEvents: [],
+  cases: [], activities: [], articles: [], conversations: [], alerts: [], referrals: [], transcript: {}, agentEvents: [],
   sessions: [
     { id: "home", kind: "home", title: "Home", tabs: [], activeTabId: null },
     { id: "inbox", kind: "inbox", title: "Inbox", tabs: [], activeTabId: null },
@@ -103,7 +106,7 @@ function reducer(s: AppState, a: Action): AppState {
       for (const c of cases) fs[c.id] = !!(c as any).suggestionsPending;
       const first = cases.find(c => c.status !== "Resolved");
       const sessions = s.sessions.map(se => se.id === "inbox" && first ? { ...se, tabs: [{ id: "inbox-" + first.id, kind: "case", caseId: first.id } as RecordTab], activeTabId: "inbox-" + first.id } : se);
-      return { ...s, loaded: true, llm: a.data.llm, cases, activities: a.data.activities, articles: a.data.articles, conversations: a.data.conversations ?? [], alerts: a.data.alerts ?? [], formSuggestions: fs, sessions, inboxSelectedCaseId: first?.id ?? null };
+      return { ...s, loaded: true, llm: a.data.llm, cases, activities: a.data.activities, articles: a.data.articles, conversations: a.data.conversations ?? [], alerts: a.data.alerts ?? [], referrals: a.data.referrals ?? [], formSuggestions: fs, sessions, inboxSelectedCaseId: first?.id ?? null };
     }
     case "connected": return { ...s, connected: a.value };
     case "upsertCase": return { ...s, cases: upsert(s.cases, a.c, true), formSuggestions: { ...s.formSuggestions, [a.c.id]: !!(a.c as any).suggestionsPending } };
@@ -111,6 +114,7 @@ function reducer(s: AppState, a: Action): AppState {
     case "upsertArticle": return { ...s, articles: upsert(s.articles, a.a, true) };
     case "upsertConversation": return { ...s, conversations: upsert(s.conversations, a.c, true) };
     case "upsertAlert": return { ...s, alerts: upsert(s.alerts, a.a, true) };
+    case "upsertReferral": return { ...s, referrals: upsert(s.referrals, a.r, true) };
     case "transcriptLine": { const cur = s.transcript[a.l.conversationId] ?? []; return cur.some(x => x.id === a.l.id) ? s : { ...s, transcript: { ...s.transcript, [a.l.conversationId]: [...cur, a.l] } }; }
     case "agentEvent": return { ...s, agentEvents: [a.e, ...s.agentEvents].slice(0, 200) };
     case "selectSession": return { ...s, activeSessionId: a.id };
@@ -190,6 +194,9 @@ const AGENT_SUMMARY: Record<string, (o: any, sid?: string) => string> = {
   "Pay Event Sentinel": o => o?.proactive === false ? `Pay Event Sentinel updated ${o.number} from the bank return file` : o?.unapproved ? `Pay Event Sentinel opened ${o.number}: ${o.unapproved} timesheets unapproved at cut-off` : `Pay Event Sentinel opened ${o?.number ?? "a case"} and notified the employee`,
   "Incident Clustering Agent": o => `Incident Clustering Agent linked ${o?.affected ?? ""} cases under ${o?.number ?? "an incident"} (${o?.confidence ?? ""} confidence)`,
   "Day-7 Resolution Verifier": o => o?.outcome === "settled" ? `Day-7 Resolution Verifier confirmed ${o.number}: payment settled` : o?.outcome === "on_track" ? `Day-7 Resolution Verifier: ${o.number} remedy on track for ${o.next_check ?? o.nextCheck ?? ""}` : o?.outcome === "reopened" ? `Day-7 Resolution Verifier reopened ${o.number}: payment not settled` : `Day-7 Resolution Verifier scheduled the check for ${o?.due?.slice(0, 10) ?? ""}`,
+  "Payslip Variance Explainer": o => o?.needs_correction ? `Payslip Variance Explainer: ${o.number} — a line looks wrong, correction needed` : `Payslip Variance Explainer explained ${o?.differences ?? ""} changes on ${o?.number ?? "the case"}`,
+  "State & Tax Rules Agent": o => `State & Tax Rules Agent applied the rules on ${o?.number ?? "the case"}${o?.deadline ? ` · deadline ${o.deadline}` : ""}`,
+  "Complete-Case Referral Agent": o => o?.reference ? `Referral ${o.reference} submitted to Strada Assist — complete package` : o?.missing?.length ? `Referral on ${o.number}: ${o.missing.length} item${o.missing.length > 1 ? "s" : ""} still missing` : `Referral package for ${o?.number ?? "the case"} is complete`,
   "Next Best Action Agent": o => o?.intervene ? `Next Best Action Agent recommends a human take-over (${o.risk} risk)` : `Next Best Action Agent: ${o?.stage ?? "updated"}`,
   "Strada Pay assistant": o => o?.outcome === "transferred" ? "Strada Pay assistant handed over a conversation with context" : "Strada Pay assistant resolved a conversation",
   "Customer Knowledge Management Agent": o => (o?.articleId ?? o?.article_id) ? `Knowledge Management Agent drafted ${o.articleId ?? o.article_id} for review` : `Knowledge Management Agent: resolution already covered`,
@@ -228,6 +235,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         case "article.created": case "article.updated": rawDispatch({ type: "upsertArticle", a: data }); break;
         case "conversation.updated": rawDispatch({ type: "upsertConversation", c: data }); break;
         case "alert.created": rawDispatch({ type: "upsertAlert", a: data }); break;
+        case "referral.updated": rawDispatch({ type: "upsertReferral", r: data }); break;
         case "transcript.line": rawDispatch({ type: "transcriptLine", l: data }); break;
         case "reset": api.bootstrap().then(d => rawDispatch({ type: "hydrate", data: d })); break;
         default:

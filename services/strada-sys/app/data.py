@@ -61,6 +61,10 @@ PAYSLIPS: dict[str, list[dict]] = {
         _payslip("CF-51877", d(-1), 0, [E("REG","Regular",1080.00,40), E("OT","Overtime 1.5x",202.50,5), T("FIT","Federal income tax",118.20), T("SS","Social Security",79.52), T("MED","Medicare",18.60), D("CS","Child support – WA-CS-77821",312.00,"GRN-2291"), D("CS","Child support – WA-CS-77821",312.00,"GRN-2291-B"), D("MED-P","Medical – employee",61.20)], 45),
         _payslip("CF-51877", d(-8), 0, [E("REG","Regular",1080.00,40), E("OT","Overtime 1.5x",81.00,2), T("FIT","Federal income tax",104.90), T("SS","Social Security",71.98), T("MED","Medicare",16.83), D("CS","Child support – WA-CS-77821",312.00,"GRN-2291"), D("MED-P","Medical – employee",61.20)], 42),
     ],
+    "NRG-40777": [
+        _payslip("NRG-40777", d(-7), 0, [E("REG","Regular",2480.00,80), T("FIT","Federal income tax",286.40), T("SS","Social Security",153.76), T("MED","Medicare",35.96), T("IL","Illinois state tax",122.76), D("401K","401(k) 8%",198.40), D("MED-P","Medical – employee",112.00), D("PARK","Parking – downtown garage",45.00)], 80),
+        _payslip("NRG-40777", d(-21), 0, [E("REG","Regular",2480.00,80), E("OT","Overtime 1.5x",186.00,4), T("FIT","Federal income tax",312.90), T("SS","Social Security",165.29), T("MED","Medicare",38.66), T("IL","Illinois state tax",131.97), D("401K","401(k) 6%",159.96), D("MED-P","Medical – employee",112.00)], 84),
+    ],
     "HPL-30544": [
         _payslip("HPL-30544", d(-6), 0, [E("SAL","Salary",3750.00), T("FIT","Federal income tax",512.40), T("SS","Social Security",232.50), T("MED","Medicare",54.38), T("NJ","New Jersey state tax",168.75), D("401K","401(k) 6%",225.00), D("MED-P","Medical – employee",140.00)], 86.67),
     ],

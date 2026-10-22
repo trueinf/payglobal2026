@@ -73,6 +73,10 @@ export interface Case {
   remedy?: { type: string; reference?: string; dispatched_at?: string; expected_settlement?: string } | null;
   verifiedAt?: Date;
   verification?: { outcome: "settled" | "on_track" | "reopened"; checked_at: string; detail: string; next_check?: string } | null;
+  findings?: { variance?: VarianceFinding; rules?: RulesFinding };
   incident?: { pay_group: string; code: string; affected: string[]; root_cause: string; confidence: string; action_plan?: string[]; employee_action?: string; client_notified_at?: string | null } | null;
 }
 export interface Alert { id: number; contactId: string | null; accountId: string | null; kind: string; channel: string; title?: string; message: string; relatedCaseId?: string | null; agent?: string; sentAt: Date; readAt?: Date | null; }
+
+export interface VarianceFinding { at: string; pay_date: string; previous_pay_date: string; net: number; previous_net: number; net_change: number; headline: string; differences: { line: string; change: string; cause: string; expected: boolean }[]; employee_explanation: string; representative_note: string; needs_correction: boolean; correction_summary?: string; }
+export interface RulesFinding { at: string; states: string[]; determination: string; rules_applied: { state: string; rule: string; applies: string }[]; forms_required?: string[]; deadline?: string; county_tax?: string; actions: { action: string; who: string; due_days?: number }[]; employee_explanation: string; status: string; }
