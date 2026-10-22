@@ -71,25 +71,33 @@ async def get_payment_status(conv: dict, a: dict) -> dict:
         out["options"] = ["re-send the deposit after the employee corrects the account number in Strada Pay", "a live check by courier (a representative has to approve this)"]
     return out
 
-async def explain_payslip(conv: dict, a: dict) -> dict:
-    if (e := _need_verify(conv)): return e
-    ct = await _contact(conv)
-    slips = await strada.payslips(ct["employee_id"], limit=2)
+def payslip_diff(slips: list[dict]) -> dict:
+    """Line-by-line comparison of the two most recent payslips."""
     if not slips: return dict(error="no_payslips")
     cur, prev = slips[0], (slips[1] if len(slips) > 1 else None)
-    def lines(s): return {l.get("code") or l.get("label"): l for l in s.get("lines", [])}
+    def lines(s): return {l.get("code") or l.get("description") or l.get("label"): l for l in s.get("lines", [])}
     cl, pl = lines(cur), lines(prev) if prev else {}
     diffs = []
     for code, l in cl.items():
         before = (pl.get(code) or {}).get("amount")
-        if before is None and prev: diffs.append(dict(line=l.get("label"), kind=l.get("kind"), change="new", amount=_money(l["amount"])))
-        elif before is not None and abs(float(before) - float(l["amount"])) >= 0.01: diffs.append(dict(line=l.get("label"), kind=l.get("kind"), before=_money(before), after=_money(l["amount"]), change=_money(float(l["amount"]) - float(before))))
+        if before is None and prev: diffs.append(dict(line=l.get("description") or l.get("label"), kind=l.get("kind"), change="new", before=None, after=float(l["amount"]), delta=float(l["amount"])))
+        elif before is not None and abs(float(before) - float(l["amount"])) >= 0.01: diffs.append(dict(line=l.get("description") or l.get("label"), kind=l.get("kind"), change="changed", before=float(before), after=float(l["amount"]), delta=round(float(l["amount"]) - float(before), 2)))
     for code, l in pl.items():
-        if code not in cl: diffs.append(dict(line=l.get("label"), kind=l.get("kind"), change="removed", amount=_money(l["amount"])))
-    return dict(pay_date=cur.get("pay_date"), gross=_money(cur.get("gross")), net=_money(cur.get("net")), hours=cur.get("hours"),
-                lines=[dict(label=l.get("label"), kind=l.get("kind"), amount=_money(l.get("amount"))) for l in cur.get("lines", [])],
-                previous=dict(pay_date=prev.get("pay_date"), gross=_money(prev.get("gross")), net=_money(prev.get("net")), hours=prev.get("hours")) if prev else None,
-                differences=diffs or ["no line changed versus the previous payslip"])
+        if code not in cl: diffs.append(dict(line=l.get("description") or l.get("label"), kind=l.get("kind"), change="removed", before=float(l["amount"]), after=None, delta=-float(l["amount"])))
+    return dict(pay_date=cur.get("pay_date"), gross=float(cur.get("gross") or 0), net=float(cur.get("net") or 0), hours=cur.get("hours"),
+                lines=[dict(label=l.get("description") or l.get("label"), kind=l.get("kind"), amount=float(l.get("amount") or 0), hours=l.get("hours")) for l in cur.get("lines", [])],
+                previous=dict(pay_date=prev.get("pay_date"), gross=float(prev.get("gross") or 0), net=float(prev.get("net") or 0), hours=prev.get("hours")) if prev else None,
+                net_change=round(float(cur.get("net") or 0) - float(prev.get("net") or 0), 2) if prev else None, differences=diffs)
+
+async def explain_payslip(conv: dict, a: dict) -> dict:
+    if (e := _need_verify(conv)): return e
+    ct = await _contact(conv)
+    d = payslip_diff(await strada.payslips(ct["employee_id"], limit=2))
+    if d.get("error"): return d
+    out = dict(pay_date=d["pay_date"], gross=_money(d["gross"]), net=_money(d["net"]), hours=d["hours"], lines=[dict(label=l["label"], kind=l["kind"], amount=_money(l["amount"])) for l in d["lines"]],
+               previous=dict(pay_date=d["previous"]["pay_date"], gross=_money(d["previous"]["gross"]), net=_money(d["previous"]["net"]), hours=d["previous"]["hours"]) if d["previous"] else None,
+               differences=[dict(line=x["line"], kind=x["kind"], change=x["change"], before=_money(x["before"]) if x["before"] is not None else None, after=_money(x["after"]) if x["after"] is not None else None, delta=_money(x["delta"])) for x in d["differences"]] or ["no line changed versus the previous payslip"])
+    return out
 
 async def update_bank_details(conv: dict, a: dict) -> dict:
     if (e := _need_verify(conv)): return e

@@ -11,6 +11,7 @@ class AgentRun:
         self.id: int | None = None
         self.tool_calls: list[dict] = []
         self.output: dict = {}
+        self.waiting: str | None = None
 
     async def __aenter__(self):
         row = await db.insert("agent_runs", dict(agent=self.agent, trigger=self.trigger, subject_type=self.subject_type, subject_id=self.subject_id, input=db.jsonable(self.input)))
@@ -28,6 +29,7 @@ class AgentRun:
         await hub.broadcast("agent.tool", dict(run_id=self.id, agent=self.agent, subject_id=self.subject_id, **rec))
 
     async def wait(self, reason: str):
+        self.waiting = reason
         await db.execute("update agent_runs set status = 'waiting', output = %s where id = %s", json.dumps(dict(waiting_for=reason)), self.id)
         await hub.broadcast("agent.waiting", dict(run_id=self.id, agent=self.agent, subject_id=self.subject_id, reason=reason))
 
@@ -36,8 +38,9 @@ class AgentRun:
             await db.execute("update agent_runs set status = 'failed', error = %s, finished_at = now() where id = %s", "".join(traceback.format_exception_only(exc_type, exc)), self.id)
             await hub.broadcast("agent.failed", dict(run_id=self.id, agent=self.agent, subject_id=self.subject_id, error=str(exc)))
             return False
-        await db.execute("update agent_runs set status = 'done', output = %s, finished_at = now() where id = %s", json.dumps(db.jsonable(self.output), default=str), self.id)
-        await hub.broadcast("agent.done", dict(run_id=self.id, agent=self.agent, subject_type=self.subject_type, subject_id=self.subject_id, output=self.output))
+        status = "waiting" if self.waiting else "done"
+        await db.execute("update agent_runs set status = %s, output = %s, finished_at = now() where id = %s", status, json.dumps(db.jsonable(dict(self.output, waiting_for=self.waiting) if self.waiting else self.output), default=str), self.id)
+        await hub.broadcast("agent.done", dict(run_id=self.id, agent=self.agent, subject_type=self.subject_type, subject_id=self.subject_id, output=dict(self.output, waiting_for=self.waiting) if self.waiting else self.output))
         return False
 
 def _trim(v: Any, n: int = 4000):

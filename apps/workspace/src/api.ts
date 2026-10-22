@@ -2,12 +2,12 @@
 const BASE = (import.meta as any).env?.VITE_RUNTIME_URL ?? "http://localhost:8080";
 const WS = BASE.replace(/^http/, "ws") + "/ws";
 
-const DATE_KEYS = new Set(["nbaAt", "verifiedAt", "readAt", "createdOn", "modifiedOn", "escalatedOn", "followUpBy", "firstResponseBy", "resolveBy", "resolvedOn", "at", "modifiedAt", "due", "modified", "startedAt", "acceptedAt", "endedAt", "closedAt", "sentAt", "startedAt", "finishedAt"]);
+const DATE_KEYS = new Set(["nbaAt", "verifiedAt", "readAt", "updatedAt", "createdAt", "createdOn", "modifiedOn", "escalatedOn", "followUpBy", "firstResponseBy", "resolveBy", "resolvedOn", "at", "modifiedAt", "due", "modified", "startedAt", "acceptedAt", "endedAt", "closedAt", "sentAt", "startedAt", "finishedAt"]);
 export function revive<T = any>(v: any): T {
   if (Array.isArray(v)) return v.map(revive) as any;
   if (v && typeof v === "object") {
     const o: any = {};
-    for (const [k, x] of Object.entries(v)) o[k] = DATE_KEYS.has(k) && typeof x === "string" ? new Date(x) : (k === "transcript" || k === "steps" || k === "toolCalls" || k === "payload" || k === "output" || k === "input" || k === "incident" || k === "verification" || k === "remedy") ? x : k === "nba" ? camelObj(x) : revive(x);
+    for (const [k, x] of Object.entries(v)) o[k] = DATE_KEYS.has(k) && typeof x === "string" ? new Date(x) : (k === "transcript" || k === "steps" || k === "toolCalls" || k === "payload" || k === "output" || k === "input" || k === "incident" || k === "verification" || k === "remedy" || k === "findings" || k === "checklist" || k === "package") ? x : k === "nba" ? camelObj(x) : revive(x);
     return o;
   }
   return v;
@@ -27,6 +27,8 @@ export const api = {
   acceptSuggestions: (id: string) => req("POST", `/cases/${id}/accept-suggestions`),
   route: (id: string) => req("POST", `/cases/${id}/route`),
   agentRuns: (caseId: string) => req("GET", `/cases/${caseId}/agent-runs`),
+  caseAgent: (caseId: string, agent: "variance" | "rules") => req("POST", `/cases/${caseId}/agents/${agent}`),
+  refer: (caseId: string, requestType: string | undefined, extra: Record<string, string>, submit: boolean) => req("POST", `/cases/${caseId}/referral`, { requestType, extra, submit }),
   addActivity: (a: any) => req("POST", "/activities", a),
   patchActivity: (id: string, patch: any) => req("PATCH", `/activities/${id}`, patch),
   patchArticle: (id: string, patch: any) => req("PATCH", `/articles/${id}`, patch),

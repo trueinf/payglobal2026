@@ -80,6 +80,38 @@ Presenter controls (workspace, not product UI): `Ctrl/Cmd+Shift+D` opens the dem
 
 ---
 
+## Payslip Variance Explainer — phase 2b
+
+**Trigger** A case with intent *Payslip variance* is created (chat, voice, email), or *Explain payslip variance* from the case command bar.
+
+**Story** Samuel Okafor (Northbridge, BW-STORE) says his net pay is ~$260 lower and he changed nothing. The agent reads his two most recent payslips, diffs them line by line and explains each change with its cause: no overtime this period (expected), taxes down with gross (expected) — and two lines the employee did not ask for: 401(k) 6 % → 8 % and a new $45 parking deduction, flagged **Check**. Case type becomes Problem, summary and highlights are rewritten, a timeline note lists every line, and the reply to the employee is drafted ("Use this reply" puts it into the email draft).
+
+**What people see** The *Payslip comparison* card on the case with Expected/Check per line and the drafted reply; the note on the timeline; toast "a line looks wrong, correction needed". Next step for the representative: *Refer to Strada Assist* → Pay correction.
+
+---
+
+## State & Tax Rules Agent — phase 2b
+
+**Trigger** Cases with intent *Tax withholding change*, *Final pay timing* or *Employee data change* on creation, or *Check state & tax rules* from the command bar.
+
+**Story (move)** Marcus Hill moved IL → IN on 09/28; his last pay still withheld Illinois tax. The agent reads his record (state, previous address, move date, withholding on file) and the IL and IN rule reference → determination: Indiana withholding from the move date, form WH‑4 (Indiana does not accept the federal W‑4), Illinois ends the day before; Hamilton County tax does **not** apply in 2026 because county of residence on 1 January sets the year — it starts 2027. Actions by owner (employee: submit WH‑4; payroll: end-date IL, correct the 10/16 pay), follow-up tasks on the timeline, status → Waiting for Details, reply drafted.
+
+**Story (final pay)** A store manager asks when a terminated associate's final pay is due. The agent applies the Illinois rule from the reference with the BW‑STORE pay calendar → a date, set as the deadline on the case.
+
+**What people see** The *State & tax rules* card (determination, rules cited, county tax, forms, actions, reply); tasks on the timeline; status and resolve-by updated by the agent.
+
+---
+
+## Complete-Case Referral Agent — phase 2b
+
+**Trigger** *Refer to Strada Assist* on the case (the agent picks the request type from the case, or the representative chooses).
+
+**Story** Elena Petrova's duplicate child-support deduction needs a garnishment dispute at Strada Assist. The agent asks Strada Assist what that request type requires (order reference, deduction history, employee statement), collects the order references from Strada garnishments and the deduction history from the payslips, and finds the employee statement is not on the case — so it **stops**, posts "1 item missing" naming who must supply it, and waits. The representative types the statement into the card and submits; the package goes to Strada Assist complete and comes back with reference SA‑…, posted on the timeline and in the highlights ("complete package, no bounce-back"). For Tom Reilly's bank return the agent infers *Live check* (his bank details are still uncorrected) and finds every item in the systems — ready to submit at once; for a *Re-issue* it would wait for the employee to correct the account in Strada Pay and re-check.
+
+**What people see** The *Referral to Strada Assist* card with the checklist (✓ with source / ✗ with who must supply it), inline fields for the representative's items, Re-check and Submit; the Strada reference once sent; agent run "waiting" while incomplete.
+
+---
+
 ## Not yet built **[gap]**
 
-Customer Intent Agent, Quality Evaluation Agent, Payslip Variance Explainer (the tool exists; no case-side agent), Complete-Case Referral, State & Tax Rules, Identity & Risk (verification only), Client Insight, Garnishment Order Reader.
+Customer Intent Agent, Quality Evaluation Agent, Identity & Risk (verification only today), Client Insight, Garnishment Order Reader.

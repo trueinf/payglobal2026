@@ -77,8 +77,11 @@ def camel(k: str) -> str:
     if k == "from_name": return "from"
     return _re.sub(r"_([a-z])", lambda m: m.group(1).upper(), k)
 
+RAW_BLOBS = {"findings", "incident", "verification", "remedy", "checklist", "package", "tool_calls", "output", "input", "payload", "transcript", "steps", "highlights"}
+
 def jsonable(v, camelize: bool = False):
+    """ISO dates everywhere; camelCase only the record's own column names — stored JSON blobs keep their keys (the apps read them as written)."""
     if isinstance(v, datetime): return v.isoformat()
-    if isinstance(v, dict): return {(camel(k) if camelize else k): jsonable(x, camelize) for k, x in v.items()}
+    if isinstance(v, dict): return {(camel(k) if camelize else k): (jsonable(x, False) if camelize and k in RAW_BLOBS else jsonable(x, camelize)) for k, x in v.items()}
     if isinstance(v, list): return [jsonable(x, camelize) for x in v]
     return v

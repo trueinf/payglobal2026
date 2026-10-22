@@ -26,8 +26,17 @@ def snake(k: str) -> str:
     if k == "from": return "from_name"
     return re.sub(r"([A-Z])", lambda m: "_" + m.group(1).lower(), k)
 
-from .agents import sentinel, incident_clustering, day7
+from .agents import sentinel, incident_clustering, day7, variance, tax_rules, referral
 EVENT_AGENTS = [sentinel, incident_clustering, day7]
+CASE_AGENTS = {"variance": (variance, variance.INTENTS), "rules": (tax_rules, tax_rules.INTENTS)}
+
+async def _case_agents_on_create(ev: dict):
+    """Agents that work on a case the moment it exists, by intent."""
+    p = ev["payload"]
+    for key, (mod, intents) in CASE_AGENTS.items():
+        if p.get("intent") in intents and p.get("case_id"):
+            try: await mod.run(p["case_id"], trigger="event")
+            except Exception as e: import traceback; traceback.print_exc(); print(f"[{mod.AGENT}] failed: {e}")
 
 async def _run_agent(agent, ev: dict):
     try:
@@ -43,6 +52,7 @@ async def dispatch_event(ev: dict):
     for agent in EVENT_AGENTS:
         if ev["type"] in agent.HANDLES:
             asyncio.create_task(_run_agent(agent, ev))
+    if ev["type"] == "case.created": asyncio.create_task(_case_agents_on_create(ev))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -78,6 +88,7 @@ async def bootstrap():
         scripts=ser_all(await db.fetch("select * from agent_scripts order by id")),
         conversations=ser_all(await db.fetch("select * from conversations order by started_at desc")),
         alerts=ser_all(await db.fetch("select * from alerts order by sent_at desc limit 50")),
+        referrals=ser_all(await db.fetch("select * from referrals order by updated_at desc")),
         owner=settings.owner, llm="claude" if llm.available() else "rules-fallback",
     )
 
@@ -135,6 +146,24 @@ async def route(case_id: str):
     await post(case_id, "Unified routing", f"Case routed to {case['queue_name']}", f"Routed by rule: Payroll – intent to queue. Assigned to {settings.owner}.")
     await db.emit("case.routed", dict(case_id=case_id, queue_id=case["queue_id"]))
     return ser(await case_changed(case_id))
+
+@app.post("/cases/{case_id}/agents/{agent}")
+async def run_case_agent(case_id: str, agent: str):
+    if agent not in CASE_AGENTS: raise HTTPException(404, "unknown agent")
+    mod = CASE_AGENTS[agent][0]
+    out = await mod.run(case_id, trigger="manual")
+    return dict(agent=mod.AGENT, finding=db.jsonable(out) if out else None)
+
+class ReferralReq(BaseModel):
+    requestType: str | None = None; extra: dict = {}; submit: bool = False
+
+@app.post("/cases/{case_id}/referral")
+async def refer(case_id: str, r: ReferralReq):
+    row = await referral.prepare(case_id, r.requestType, r.extra, r.submit, trigger="manual")
+    return ser(row)
+
+@app.get("/cases/{case_id}/referrals")
+async def referrals_for(case_id: str): return ser_all(await db.fetch("select * from referrals where case_id = %s order by updated_at desc", case_id))
 
 @app.get("/cases/{case_id}/agent-runs")
 async def runs_for(case_id: str):

@@ -9,6 +9,7 @@ import { fmtDate, fmtDateTime, fmtTime } from "../util";
 import Timeline from "./Timeline";
 import Subgrid from "./Subgrid";
 import CopilotCard from "./CopilotCard";
+import AgentFindings, { ReferDialog } from "./AgentFindings";
 
 type Tab = "Summary" | "Details" | "Attachments" | "Related";
 
@@ -20,6 +21,8 @@ export default function CaseForm({ caseId }: { caseId: string }) {
   const [tab, setTab] = useState<Tab>("Summary");
   const [flyout, setFlyout] = useState(false);
   const [resolve, setResolve] = useState(false);
+  const [refer, setRefer] = useState(false);
+  const runAgent = (agent: "variance" | "rules") => { dispatch({ type: "toast", text: agent === "variance" ? "Payslip Variance Explainer is reading the payslips…" : "State & Tax Rules Agent is checking the rules…" }); api.caseAgent(c.id, agent).catch(e => dispatch({ type: "toast", text: e.message })); };
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [assist, setAssist] = useState(false);
@@ -131,6 +134,9 @@ export default function CaseForm({ caseId }: { caseId: string }) {
             <MenuItem icon={<PersonArrowRight20Regular />}>Assign</MenuItem>
             <MenuItem icon={<ArrowRight16Regular />}>Add to Queue</MenuItem>
             <MenuItem icon={<DocumentOnePage20Regular />}>Create Child Case</MenuItem>
+            <MenuItem icon={<Sparkle16Filled />} onClick={() => setRefer(true)} disabled={resolved}>Refer to Strada Assist</MenuItem>
+            <MenuItem icon={<Sparkle16Filled />} onClick={() => runAgent("variance")} disabled={resolved}>Explain payslip variance</MenuItem>
+            <MenuItem icon={<Sparkle16Filled />} onClick={() => runAgent("rules")} disabled={resolved}>Check state &amp; tax rules</MenuItem>
             <MenuItem icon={<Delete20Regular />}>Delete</MenuItem>
           </MenuList></MenuPopover>
         </Menu>
@@ -184,9 +190,10 @@ export default function CaseForm({ caseId }: { caseId: string }) {
               <div>{dueCard}{fields}</div>
               <div>{summaryCard}{incidentCard}</div>
             </div>
+            <AgentFindings c={c} />
             <Timeline c={c} />
           </>
-        ) : <>{dueCard}{fields}{summaryCard}{incidentCard}<Timeline c={c} /></>)}
+        ) : <>{dueCard}{fields}{summaryCard}{incidentCard}<AgentFindings c={c} /><Timeline c={c} /></>)}
 
         {tab === "Details" && (
           <>
@@ -220,6 +227,7 @@ export default function CaseForm({ caseId }: { caseId: string }) {
       </div>
 
       {resolve && <ResolveDialog c={c} onClose={() => setResolve(false)} />}
+      {refer && <ReferDialog c={c} onClose={() => setRefer(false)} />}
     </div>
   );
 }

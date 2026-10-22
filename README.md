@@ -29,6 +29,8 @@ Phase 1 (this build): the **Strada Pay assistant** — one employee-facing agent
 
 Phase 2 — the event-driven agents. The **Pay Event Sentinel** reacts to bank return files and timesheet cut-offs (opens the case, tells the employee or client contact first), the **Incident Clustering Agent** links same-cause cases under one incident with the likely root cause and notifies the client lead once, and the **Day-7 Resolution Verifier** checks every resolved bank-return case against Strada payments seven days later (settled / on track / reopened). Home has a *Payroll Prevention Dashboard*; `Ctrl/Cmd+Shift+D` opens the presenter's demo feeds (bank return file, timesheet cut-off, move the clock, reset). Employees see the agents' notifications on their Strada Pay home. The stories are in `docs/STORIES.md`.
 
+Phase 2b — agents on the open case. The **Payslip Variance Explainer** diffs the last two payslips and explains every change (flagging the ones that look wrong), the **State & Tax Rules Agent** applies the state rule reference to moves, final pay and address changes (forms, dates, county tax, actions by owner), and the **Complete-Case Referral Agent** builds the Strada Assist package from the systems and the case, stops on what is missing, and submits only when complete. They run on case creation by intent and from the case command bar (⋮ → Refer to Strada Assist / Explain payslip variance / Check state & tax rules); findings appear as cards on the case.
+
 `make e2e` runs the whole loop with Playwright (chat path; needs the stack and both apps running).
 
 Try it from a terminal while the workspace is open:
