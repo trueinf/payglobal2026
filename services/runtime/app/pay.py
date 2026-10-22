@@ -25,6 +25,15 @@ async def employees():
     rows = await db.fetch("select c.id, c.name, c.employee_id, c.email, c.phone, c.pay_group, c.state, a.name as account_name from contacts c join accounts a on a.id = c.account_id where c.role = 'employee' order by c.name")
     return [ser(r) for r in rows]
 
+@router.get("/alerts/{contact_id}")
+async def my_alerts(contact_id: str):
+    rows = await db.fetch("select a.*, c.number as case_number from alerts a left join cases c on c.id = a.related_case_id where a.contact_id = %s order by a.sent_at desc limit 20", contact_id)
+    return [ser(r) for r in rows]
+
+@router.post("/alerts/{alert_id}/read")
+async def read_alert(alert_id: int):
+    row = await db.update("alerts", alert_id, dict(read_at=db.now())); return ser(row)
+
 # ---- sessions ----
 class NewSession(BaseModel):
     contactId: str | None = None; email: str | None = None; channel: str = "chat"

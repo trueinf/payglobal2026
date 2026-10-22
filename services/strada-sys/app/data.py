@@ -31,6 +31,8 @@ EMPLOYEES: dict[str, dict[str, Any]] = {
     "HPL-30912": dict(contact_id="c8", name="Jordan Lee", client="Harbor Point Logistics", account="a1", pay_group="BW-OPS", state="NJ", county="Hudson", phone="+12015550912", email="jordan.lee@harborpoint.example", ssn_last4="1175", address="41 Bay St, Bayonne, NJ 07002", bank=dict(routing="021200339", account_masked="••••5566", account_last4="5566", status="ok"), hire_date="2023-05-15", status="active"),
     "NRG-40777": dict(contact_id="c9", name="Samuel Okafor", client="Northbridge Retail Group", account="a3", pay_group="BW-STORE", state="IL", county="Cook", phone="+13125550777", email="samuel.okafor@northbridge.example", ssn_last4="8830", address="615 W Roosevelt Rd, Chicago, IL 60607", bank=dict(routing="071000013", account_masked="••••2201", account_last4="2201", status="ok"), hire_date="2015-09-01", status="active", role="store manager"),
     "CF-52010":  dict(contact_id="c10", name="Grace Kim", client="Cascade Foods", account="a4", pay_group="SM-OFFICE", state="WA", county="King", phone="+12065552010", email="grace.kim@cascadefoods.example", ssn_last4="0147", address="12 Lakeview Dr, Renton, WA 98056", bank=dict(routing="125000024", account_masked="••••7310", account_last4="7310", status="ok"), hire_date="2019-10-14", status="active", role="client payroll contact"),
+    "HPL-30920": dict(contact_id="c14", name="Maria Santos", client="Harbor Point Logistics", account="a1", pay_group="BW-OPS", state="NJ", county="Hudson", phone="+12015550920", email="maria.santos@harborpoint.example", ssn_last4="3321", address="18 Garfield Ave, Jersey City, NJ 07305", bank=dict(routing="021200339", account_masked="••••6072", account_last4="6072", status="ok"), hire_date="2022-03-14", status="active"),
+    "HPL-30931": dict(contact_id="c15", name="Derek Cole", client="Harbor Point Logistics", account="a1", pay_group="BW-OPS", state="NJ", county="Hudson", phone="+12015550931", email="derek.cole@harborpoint.example", ssn_last4="7745", address="402 Kennedy Blvd, Bayonne, NJ 07002", bank=dict(routing="021200339", account_masked="••••1189", account_last4="1189", status="ok"), hire_date="2019-08-26", status="active"),
     "HPL-31005": dict(contact_id="c12", name="Victor Nguyen", client="Harbor Point Logistics", account="a1", pay_group="BW-OPS", state="NJ", county="Hudson", phone="+12015551005", email="victor.nguyen@harborpoint.example", ssn_last4="9930", address="77 Summit Ave, Jersey City, NJ 07306", previous_address="5 Grove St, Jersey City, NJ 07302", address_updated="2026-10-07", bank=dict(routing="021200339", account_masked="••••4418", account_last4="4418", status="ok"), hire_date="2021-12-06", status="active"),
 }
 
@@ -103,4 +105,39 @@ STATE_RULES: dict[str, dict[str, Any]] = {
 }
 
 ASSIST_CASES: list[dict] = []   # referrals land here
+
+# ---- scenario triggers (what the demo presenter fires; in production these are the real feeds) ----
+def post_ach_return_file(pay_group: str, code: str = "R04", reason: str = "Invalid account number", employee_ids: list[str] | None = None) -> list[dict]:
+    """A bank return file arrives for a pay group: mark payments returned and return the new entries."""
+    pg = PAY_GROUPS[pay_group]
+    ids = employee_ids or [e for e, v in EMPLOYEES.items() if v["pay_group"] == pay_group and v.get("role") != "client payroll lead"]
+    out = []
+    for i, e in enumerate(ids):
+        pay_date = pg["last_pay_date"]; amount = PAYSLIPS[e][0]["net"] if e in PAYSLIPS else 2000.00
+        PAYMENTS[e] = dict(pay_date=pay_date, method="ACH", amount=amount, status="returned", return_code=code, return_reason=reason, returned_at=now_iso(), trace=f"ACH-{pay_date.replace('-','')}-{1000+i:06d}", remedy=None)
+        EMPLOYEES[e]["bank"]["status"] = "returned"
+        row = dict(employee_id=e, pay_group=pay_group, client=pg["client"], **{k: v for k, v in PAYMENTS[e].items() if k in ("pay_date","amount","return_code","return_reason","returned_at","trace")}, routing=EMPLOYEES[e]["bank"]["routing"])
+        ACH_RETURNS.append(row); out.append(row)
+    return out
+
+def set_remedy(employee_id: str, kind: str, reference: str, as_of: str) -> dict:
+    """Record the remedy for a returned payment; it settles on a schedule the Day-7 verifier can check against the demo clock."""
+    p = PAYMENTS[employee_id]
+    dispatched = date.fromisoformat(as_of[:10])
+    settle = dispatched + timedelta(days=2) if kind == "live_check" else date.fromisoformat(PAY_GROUPS[EMPLOYEES[employee_id]["pay_group"]]["next_pay_date"])
+    p["remedy"] = dict(type=kind, reference=reference, dispatched_at=dispatched.isoformat(), expected_settlement=settle.isoformat())
+    return p["remedy"]
+
+def payment_as_of(employee_id: str, as_of: str | None) -> dict:
+    """Payment status as the systems would show it on a given day (the demo clock)."""
+    p = dict(PAYMENTS[employee_id]); r = p.get("remedy")
+    if r and as_of and as_of[:10] >= r["expected_settlement"] and r["type"] == "redeposit" and EMPLOYEES[employee_id]["bank"]["status"] == "returned":
+        p["remedy"] = dict(r, status="failed", failed_at=r["expected_settlement"], reason="Redeposit returned again – bank details were not corrected"); p["status"] = "returned"
+    elif r and as_of and as_of[:10] >= r["expected_settlement"]:
+        p["remedy"] = dict(r, status="settled", settled_at=r["expected_settlement"]); p["status"] = "paid"; p["settled_via"] = r["type"]
+    elif r:
+        p["remedy"] = dict(r, status="dispatched" if r["type"] == "live_check" else "scheduled")
+    return p
+
+def now_iso(): return datetime.now(timezone.utc).isoformat()
 AUDIT: list[dict] = []

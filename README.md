@@ -27,6 +27,8 @@ Phase 1 (this build): the **Strada Pay assistant** — one employee-facing agent
 - **Supervisor view**: the Omnichannel Ongoing Conversations dashboard lists every live conversation, including the ones the assistant is handling. *Monitor* opens it read-only with the live transcript, the **Next Best Action Agent** card (stage, next step, risk, take-over recommendation — re-evaluated after every employee turn) and a live feed of the assistant's tool calls. *Assign* or *Take over* pulls an assistant-handled conversation to you immediately; the employee's voice session with the ElevenLabs agent ends and the live bridge takes over.
 - `Ctrl/Cmd+Shift+I` in the workspace re-arms the seeded incoming voice call (Tom Reilly) for a demo without the employee app.
 
+Phase 2 — the event-driven agents. The **Pay Event Sentinel** reacts to bank return files and timesheet cut-offs (opens the case, tells the employee or client contact first), the **Incident Clustering Agent** links same-cause cases under one incident with the likely root cause and notifies the client lead once, and the **Day-7 Resolution Verifier** checks every resolved bank-return case against Strada payments seven days later (settled / on track / reopened). Home has a *Payroll Prevention Dashboard*; `Ctrl/Cmd+Shift+D` opens the presenter's demo feeds (bank return file, timesheet cut-off, move the clock, reset). Employees see the agents' notifications on their Strada Pay home. The stories are in `docs/STORIES.md`.
+
 `make e2e` runs the whole loop with Playwright (chat path; needs the stack and both apps running).
 
 Try it from a terminal while the workspace is open:

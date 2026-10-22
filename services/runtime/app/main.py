@@ -26,9 +26,23 @@ def snake(k: str) -> str:
     if k == "from": return "from_name"
     return re.sub(r"([A-Z])", lambda m: "_" + m.group(1).lower(), k)
 
+from .agents import sentinel, incident_clustering, day7
+EVENT_AGENTS = [sentinel, incident_clustering, day7]
+
+async def _run_agent(agent, ev: dict):
+    try:
+        await agent.handle(ev)
+        await db.execute("update events set processed_by = array_append(processed_by, %s) where id = %s", agent.AGENT, ev["id"])
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"[{agent.AGENT}] failed on {ev['type']}: {e}")
+
 async def dispatch_event(ev: dict):
-    """fan-out to apps, then let event-driven agents react (phase 2+)"""
+    """fan-out to apps, then let the event-driven agents react"""
     await hub.broadcast("event", ev)
+    for agent in EVENT_AGENTS:
+        if ev["type"] in agent.HANDLES:
+            asyncio.create_task(_run_agent(agent, ev))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -105,7 +119,7 @@ async def resolve_case(case_id: str, r: Resolve):
     if not case: raise HTTPException(404)
     row = await db.update("cases", case_id, dict(status="Resolved", resolution=r.resolution, resolved_on=db.now()))
     await db.insert("activities", dict(id=db.new_id("t"), case_id=case_id, type="autopost", from_name=settings.owner, subject=f"Case resolved: {r.resolution}", body=f"Resolution: {r.resolution}. Billable time: {r.billableMinutes} min. {r.remarks}".strip()))
-    await db.emit("case.resolved", dict(case_id=case_id, intent=case["intent"], contact_id=case["customer_id"], account_id=case["account_id"], resolution=r.resolution))
+    await db.emit("case.resolved", dict(case_id=case_id, intent=case["intent"], contact_id=case["customer_id"], account_id=case["account_id"], resolution=r.resolution, remarks=r.remarks))
     await hub.broadcast("case.updated", row)
     # Knowledge Management Agent drafts an article (phase 0: inline, synchronous behaviour)
     from .agents import knowledge_management as km
@@ -315,11 +329,41 @@ async def clock(c: Clock):
     await db.emit("clock.advanced", dict(offset_seconds=off), "demo")
     return dict(offset_seconds=off, now=(await db.demo_now()).isoformat())
 
+SCENARIOS = {
+    "ach-return-file": dict(label="Bank return file lands – Harbor Point BW-OPS (4 × R04)", strada=("/demo/scenario/ach-return-file", dict(pay_group="BW-OPS"))),
+    "timesheet-cutoff": dict(label="Timesheet cut-off – Cascade Foods WK-PLANT (14 unapproved)", strada=("/demo/scenario/timesheet-cutoff", dict(pay_group="WK-PLANT"))),
+    "advance-7-days": dict(label="Advance the clock 7 days (Day-7 verification)", clock=7 * 86400),
+    "advance-1-day": dict(label="Advance the clock 1 day", clock=86400),
+}
+
+@app.get("/demo/scenarios")
+async def scenarios():
+    cur = await db.one("select value from settings where key = 'demo_clock'")
+    return dict(scenarios=[dict(id=k, label=v["label"]) for k, v in SCENARIOS.items()], clock=dict(offset_seconds=cur["value"]["offset_seconds"], now=(await db.demo_now()).isoformat()))
+
+@app.post("/demo/scenario/{name}")
+async def run_scenario(name: str):
+    sc = SCENARIOS.get(name)
+    if not sc: raise HTTPException(404, "unknown scenario")
+    if "strada" in sc:
+        path, body = sc["strada"]
+        res = await strada._send("POST", path, json=body)
+        if res.get("error"): raise HTTPException(502, f"Strada systems: {res['error']}")
+        return dict(scenario=name, result=res)
+    return dict(scenario=name, result=await clock(Clock(advanceSeconds=sc["clock"])))
+
+@app.get("/alerts")
+async def list_alerts(contactId: str | None = None, limit: int = 50):
+    if contactId: return ser_all(await db.fetch("select * from alerts where contact_id = %s order by sent_at desc limit %s", contactId, limit))
+    return ser_all(await db.fetch("select * from alerts order by sent_at desc limit %s", limit))
+
 @app.post("/demo/reset")
 async def reset():
     import subprocess, sys, os
     seed = os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages", "schema", "seed.py")
     subprocess.run([sys.executable, seed, "--dsn", settings.database_url], check=True)
+    await db.execute("update settings set value = %s where key = 'demo_clock'", json.dumps(dict(offset_seconds=0)))
+    res = await strada._send("POST", "/demo/reset")
     await hub.broadcast("reset", {})
     return dict(ok=True)
 

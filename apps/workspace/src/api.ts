@@ -2,12 +2,12 @@
 const BASE = (import.meta as any).env?.VITE_RUNTIME_URL ?? "http://localhost:8080";
 const WS = BASE.replace(/^http/, "ws") + "/ws";
 
-const DATE_KEYS = new Set(["nbaAt", "createdOn", "modifiedOn", "escalatedOn", "followUpBy", "firstResponseBy", "resolveBy", "resolvedOn", "at", "modifiedAt", "due", "modified", "startedAt", "acceptedAt", "endedAt", "closedAt", "sentAt", "startedAt", "finishedAt"]);
+const DATE_KEYS = new Set(["nbaAt", "verifiedAt", "readAt", "createdOn", "modifiedOn", "escalatedOn", "followUpBy", "firstResponseBy", "resolveBy", "resolvedOn", "at", "modifiedAt", "due", "modified", "startedAt", "acceptedAt", "endedAt", "closedAt", "sentAt", "startedAt", "finishedAt"]);
 export function revive<T = any>(v: any): T {
   if (Array.isArray(v)) return v.map(revive) as any;
   if (v && typeof v === "object") {
     const o: any = {};
-    for (const [k, x] of Object.entries(v)) o[k] = DATE_KEYS.has(k) && typeof x === "string" ? new Date(x) : (k === "transcript" || k === "steps" || k === "toolCalls" || k === "payload" || k === "output" || k === "input") ? x : k === "nba" ? camelObj(x) : revive(x);
+    for (const [k, x] of Object.entries(v)) o[k] = DATE_KEYS.has(k) && typeof x === "string" ? new Date(x) : (k === "transcript" || k === "steps" || k === "toolCalls" || k === "payload" || k === "output" || k === "input" || k === "incident" || k === "verification" || k === "remedy") ? x : k === "nba" ? camelObj(x) : revive(x);
     return o;
   }
   return v;
@@ -45,6 +45,9 @@ export const api = {
     takeover: (id: string) => req("POST", `/conversations/${id}/takeover`),
   },
   clock: (advanceSeconds: number) => req("POST", "/demo/clock", { advanceSeconds }),
+  scenarios: (): Promise<{ scenarios: { id: string; label: string }[]; clock: { offsetSeconds: number; now: string } }> => req("GET", "/demo/scenarios"),
+  scenario: (id: string) => req("POST", `/demo/scenario/${id}`),
+  alerts: () => req("GET", "/alerts"),
   reset: () => req("POST", "/demo/reset"),
 };
 

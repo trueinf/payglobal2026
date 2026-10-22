@@ -4,6 +4,7 @@ Usage:
   python seed.py --sql            # print SQL (apply to Supabase via MCP or psql)
   python seed.py --dsn <DATABASE_URL>   # apply directly
 """
+from datetime import date, timedelta
 import json, sys
 
 OWNER = "Priya Natarajan"
@@ -40,7 +41,7 @@ def ins(table, rows):
     return "\n".join(out)
 
 accounts = [
-  dict(id="a1", name="Harbor Point Logistics", pay_groups=["BW-OPS","SM-CORP"], state="NJ"),
+  dict(id="a1", name="Harbor Point Logistics", pay_groups=["BW-OPS","SM-CORP"], state="NJ", payroll_lead_contact_id="c13"),
   dict(id="a2", name="Meridian Health Partners", pay_groups=["BW-NUR","BW-ADM"], state="OH", payroll_lead_contact_id="c11"),
   dict(id="a3", name="Northbridge Retail Group", pay_groups=["BW-STORE","SM-HQ"], state="IL"),
   dict(id="a4", name="Cascade Foods", pay_groups=["WK-PLANT","SM-OFFICE"], state="WA"),
@@ -56,6 +57,9 @@ contacts = [
   dict(id="c8", name="Jordan Lee", account_id="a1", employee_id="HPL-30912", email="jordan.lee@harborpoint.example", phone="+12015550912", state="NJ", pay_group="BW-OPS"),
   dict(id="c9", name="Samuel Okafor", account_id="a3", employee_id="NRG-40777", email="samuel.okafor@northbridge.example", phone="+13125550777", state="IL", pay_group="BW-STORE"),
   dict(id="c10", name="Grace Kim", account_id="a4", employee_id="CF-52010", email="grace.kim@cascadefoods.example", phone="+12065552010", state="WA", pay_group="SM-OFFICE"),
+  dict(id="c13", name="Nina Patel", account_id="a1", employee_id="HPL-PAYLEAD", email="nina.patel@harborpoint.example", phone="+12015550002", state="NJ", pay_group="Client payroll lead", role="client_lead"),
+  dict(id="c14", name="Maria Santos", account_id="a1", employee_id="HPL-30920", email="maria.santos@harborpoint.example", phone="+12015550920", state="NJ", pay_group="BW-OPS"),
+  dict(id="c15", name="Derek Cole", account_id="a1", employee_id="HPL-30931", email="derek.cole@harborpoint.example", phone="+12015550931", state="NJ", pay_group="BW-OPS"),
   dict(id="c11", name="Rachel Moreno", account_id="a2", employee_id="MHP-PAYLEAD", email="rachel.moreno@meridianhp.example", phone="+16145550001", state="OH", pay_group="Client payroll lead", role="client_lead"),
   dict(id="c12", name="Victor Nguyen", account_id="a1", employee_id="HPL-31005", email="victor.nguyen@harborpoint.example", phone="+12015551005", state="NJ", pay_group="BW-OPS"),
 ]
@@ -118,6 +122,7 @@ def C(**k):
     base.update(k); base.setdefault("modified_on", base["created_on"]); return base
 cases = [
   C(id="k2", number="CAS-10490-INC07", title="Incident: multiple BW-NUR bank returns on current pay date", customer_id="c11", account_id="a2", subject="Pay distribution", priority="High", status="In Progress", origin="Chat", queue_id="q1", created_on=T.mins(41), modified_on=T.mins(6),
+    incident=dict(pay_group="BW-NUR", code="R03", affected=["CAS-10492-R03M8","CAS-10493-R03N1","CAS-10494-R03P4","CAS-10495-R03Q9"], root_cause="Workday bank-details import on 10/02 dropped leading zeros from account numbers for the BW-NUR file", confidence="High", action_plan=["Treasury confirms the four R03 returns","Re-key account numbers from the source file","Re-send deposits or issue live checks today","Add leading-zero validation to the import"], client_notified_at=None), created_by="Incident Clustering Agent",
     description="Four employees in Meridian Health Partners pay group BW-NUR reported missing deposits within 60 minutes. Treasury confirms 4 R03 returns on the ACH file released T-2. Root cause under investigation by Tier 3: suspected bank-details import from the Workday feed on 10/02 overwrote account numbers for records with leading zeros.",
     intent="Pay group incident", script_id="s2", escalated=True, escalated_on=T.mins(30), article_ids=["KA-01073","KA-01060"], ai_updated=True, ai_fields=["type","escalated","description"], product="US Payroll – ACH File", first_response_by=T.mins(20), resolve_by=T.ahead(0,17), follow_up_by=T.ahead(0,12),
     summary="Four Meridian Health Partners employees in pay group BW-NUR reported missing direct deposits for the current pay date within one hour. The Case Management Agent clustered the four employee cases under this incident and set Type = Problem, Escalated = Yes. Treasury has confirmed four R03 returns on the ACH file released two days before pay date. Tier 3 suspects the Workday bank-details import on 10/02 dropped leading zeros from account numbers. Client payroll lead Rachel Moreno has been notified with a 60-minute update commitment; a client update call is scheduled for 12:00.",
@@ -133,6 +138,9 @@ cases = [
     summary="Keisha Brown (Meridian Health Partners, BW-NUR) reported a missing direct deposit of 2,310.55. R03 return confirmed. Case created from chat by the Case Management Agent and linked to incident CAS-10490.", highlights=["R03 return confirmed for 2,310.55.","Linked to incident CAS-10490."]),
   C(id="k5", number="CAS-10495-R03Q9", title="Pay not received – direct deposit returned (R03)", customer_id="c4", account_id="a2", subject="Pay distribution", priority="High", status="In Progress", origin="Phone", queue_id="q1", created_on=T.mins(38), parent_id="k2", intent="Pay not received – bank return", script_id="s1", article_ids=["KA-01041"], ai_created=True, ai_fields=["title","subject","priority","description"], suggestions_pending=True, description="Employee called about a missing deposit. R03 return confirmed for MHP-19876, amount 1,744.90.", resolve_by=T.ahead(1,17),
     summary="Tom Reilly (Meridian Health Partners, BW-NUR) called about a missing direct deposit of 1,744.90. R03 return confirmed. Case created from the voice conversation by the Case Management Agent and linked to incident CAS-10490.", highlights=["R03 return confirmed for 1,744.90.","Linked to incident CAS-10490."]),
+  C(id="k13", number="CAS-10458-R03AD", title="Pay not received – direct deposit returned (R03)", customer_id="c5", account_id="a1", subject="Pay distribution", priority="High", status="Resolved", origin="Chat", queue_id="q1", created_on=T(6,8,40), modified_on=T(6,11,5), resolved_on=T(6,11,5), resolution="Problem Solved", intent="Pay not received – bank return", script_id="s1", article_ids=["KA-01041"], ai_created=True, ai_fields=["title","subject","priority","description"],
+    description="Employee reported a missing semi-monthly deposit; R03 return confirmed for HPL-30544. Employee corrected the account number in Strada Pay; redeposit scheduled for the next run.", summary="Anita Desai's deposit was returned (R03). She corrected her account number through Strada Pay and the redeposit was scheduled. Resolved pending the Day-7 settlement check.", highlights=["R03 return · 2,977.72 · corrected by the employee", "Redeposit scheduled on the next semi-monthly run", "Day-7 Resolution Verifier will confirm settlement"],
+    remedy=dict(type="redeposit", reference="REDEPOSIT-7A41C0", dispatched_at=(date.today() - timedelta(days=6)).isoformat(), expected_settlement=(date.today() - timedelta(days=2)).isoformat())),
   C(id="k6", number="CAS-10471-W2R2A", title="Request copy of 2025 W-2", customer_id="c5", account_id="a1", subject="Employee documents", priority="Low", status="Resolved", origin="Email", queue_id="q5", created_on=T(1,9,12), modified_on=T(1,9,31), resolved_on=T(1,9,31), type="Request", product="US Payroll – Tax Documents", intent="Document request", script_id="s3", article_ids=["KA-01081","KA-01085"], ai_created=True, ai_updated=True, ai_fields=["title","subject","type","priority","product"], resolution="W-2 reissued; reply sent",
     description="Employee emailed asking for a copy of her 2025 W-2 for a mortgage application. Identity confirmed from the email address on file and SSN last four in the Strada Pay profile.", first_response_by=T(1,13), resolve_by=T(0,9),
     summary="Anita Desai (Harbor Point Logistics) emailed requesting a copy of her 2025 W-2 for a mortgage application. The Case Management Agent created the case from the email and classified it as a document request. Identity was confirmed against the profile on file, the W-2 was reissued to the Strada Pay document centre and a reply email was sent with download instructions. The case was resolved autonomously 19 minutes after the email arrived with no representative action.",

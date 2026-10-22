@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef } from "react";
-import type { Activity, Case, KnowledgeArticle } from "./model";
+import type { Activity, Alert, Case, KnowledgeArticle } from "./model";
 import { OWNER } from "./data";
 import { api, connect } from "./api";
 
@@ -26,13 +26,14 @@ export interface AppState {
   activities: Activity[];
   articles: KnowledgeArticle[];
   conversations: Conversation[];
+  alerts: Alert[];
   transcript: Record<string, TranscriptLine[]>;
   agentEvents: AgentEvent[];
   sessions: Session[];
   activeSessionId: string;
   inboxSelectedCaseId: string | null;
   pane: PaneTool | null;
-  dashboard: "rep" | "omni" | "trial";
+  dashboard: "rep" | "omni" | "trial" | "prevention";
   toasts: Toast[];
   copilotDraft: { activityId: string; text: string } | null;
   copilotChat: { role: "user" | "assistant"; text: string; cites?: string[] }[];
@@ -46,6 +47,7 @@ type Action =
   | { type: "upsertActivity"; a: Activity }
   | { type: "upsertArticle"; a: KnowledgeArticle }
   | { type: "upsertConversation"; c: Conversation }
+  | { type: "upsertAlert"; a: Alert }
   | { type: "transcriptLine"; l: TranscriptLine }
   | { type: "agentEvent"; e: AgentEvent }
   | { type: "selectSession"; id: string }
@@ -77,7 +79,7 @@ export const nextId = (p = "x") => `${p}${++seq}`;
 
 const initial: AppState = {
   loaded: false, connected: false, llm: "",
-  cases: [], activities: [], articles: [], conversations: [], transcript: {}, agentEvents: [],
+  cases: [], activities: [], articles: [], conversations: [], alerts: [], transcript: {}, agentEvents: [],
   sessions: [
     { id: "home", kind: "home", title: "Home", tabs: [], activeTabId: null },
     { id: "inbox", kind: "inbox", title: "Inbox", tabs: [], activeTabId: null },
@@ -101,13 +103,14 @@ function reducer(s: AppState, a: Action): AppState {
       for (const c of cases) fs[c.id] = !!(c as any).suggestionsPending;
       const first = cases.find(c => c.status !== "Resolved");
       const sessions = s.sessions.map(se => se.id === "inbox" && first ? { ...se, tabs: [{ id: "inbox-" + first.id, kind: "case", caseId: first.id } as RecordTab], activeTabId: "inbox-" + first.id } : se);
-      return { ...s, loaded: true, llm: a.data.llm, cases, activities: a.data.activities, articles: a.data.articles, conversations: a.data.conversations ?? [], formSuggestions: fs, sessions, inboxSelectedCaseId: first?.id ?? null };
+      return { ...s, loaded: true, llm: a.data.llm, cases, activities: a.data.activities, articles: a.data.articles, conversations: a.data.conversations ?? [], alerts: a.data.alerts ?? [], formSuggestions: fs, sessions, inboxSelectedCaseId: first?.id ?? null };
     }
     case "connected": return { ...s, connected: a.value };
     case "upsertCase": return { ...s, cases: upsert(s.cases, a.c, true), formSuggestions: { ...s.formSuggestions, [a.c.id]: !!(a.c as any).suggestionsPending } };
     case "upsertActivity": return { ...s, activities: upsert(s.activities, a.a) };
     case "upsertArticle": return { ...s, articles: upsert(s.articles, a.a, true) };
     case "upsertConversation": return { ...s, conversations: upsert(s.conversations, a.c, true) };
+    case "upsertAlert": return { ...s, alerts: upsert(s.alerts, a.a, true) };
     case "transcriptLine": { const cur = s.transcript[a.l.conversationId] ?? []; return cur.some(x => x.id === a.l.id) ? s : { ...s, transcript: { ...s.transcript, [a.l.conversationId]: [...cur, a.l] } }; }
     case "agentEvent": return { ...s, agentEvents: [a.e, ...s.agentEvents].slice(0, 200) };
     case "selectSession": return { ...s, activeSessionId: a.id };
@@ -184,6 +187,9 @@ const Ctx = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } 
 
 const AGENT_SUMMARY: Record<string, (o: any, sid?: string) => string> = {
   "Case Management Agent": o => o?.number ? `Case Management Agent created ${o.number}` : `Case Management Agent updated the case`,
+  "Pay Event Sentinel": o => o?.proactive === false ? `Pay Event Sentinel updated ${o.number} from the bank return file` : o?.unapproved ? `Pay Event Sentinel opened ${o.number}: ${o.unapproved} timesheets unapproved at cut-off` : `Pay Event Sentinel opened ${o?.number ?? "a case"} and notified the employee`,
+  "Incident Clustering Agent": o => `Incident Clustering Agent linked ${o?.affected ?? ""} cases under ${o?.number ?? "an incident"} (${o?.confidence ?? ""} confidence)`,
+  "Day-7 Resolution Verifier": o => o?.outcome === "settled" ? `Day-7 Resolution Verifier confirmed ${o.number}: payment settled` : o?.outcome === "on_track" ? `Day-7 Resolution Verifier: ${o.number} remedy on track for ${o.next_check ?? o.nextCheck ?? ""}` : o?.outcome === "reopened" ? `Day-7 Resolution Verifier reopened ${o.number}: payment not settled` : `Day-7 Resolution Verifier scheduled the check for ${o?.due?.slice(0, 10) ?? ""}`,
   "Next Best Action Agent": o => o?.intervene ? `Next Best Action Agent recommends a human take-over (${o.risk} risk)` : `Next Best Action Agent: ${o?.stage ?? "updated"}`,
   "Strada Pay assistant": o => o?.outcome === "transferred" ? "Strada Pay assistant handed over a conversation with context" : "Strada Pay assistant resolved a conversation",
   "Customer Knowledge Management Agent": o => (o?.articleId ?? o?.article_id) ? `Knowledge Management Agent drafted ${o.articleId ?? o.article_id} for review` : `Knowledge Management Agent: resolution already covered`,
@@ -221,6 +227,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         case "activity.created": case "activity.updated": rawDispatch({ type: "upsertActivity", a: data }); break;
         case "article.created": case "article.updated": rawDispatch({ type: "upsertArticle", a: data }); break;
         case "conversation.updated": rawDispatch({ type: "upsertConversation", c: data }); break;
+        case "alert.created": rawDispatch({ type: "upsertAlert", a: data }); break;
         case "transcript.line": rawDispatch({ type: "transcriptLine", l: data }); break;
         case "reset": api.bootstrap().then(d => rawDispatch({ type: "hydrate", data: d })); break;
         default:

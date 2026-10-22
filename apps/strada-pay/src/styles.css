@@ -54,3 +54,8 @@ p { margin: 0 0 12px; }
 .call .row { padding: 16px 20px 22px; }
 .call .note { margin: 0 20px; }
 .call label { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+
+.notices { grid-column: 1 / -1; }
+.notice { padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; } .notice:first-of-type { border-top: 0; }
+.notice.unread { background: linear-gradient(90deg, var(--accent), transparent 30%); margin: 0 -12px; padding: 10px 12px; border-radius: 8px; }
+.notice .nt { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 2px; } .notice .nt span { color: var(--muted); font-size: 13px; }

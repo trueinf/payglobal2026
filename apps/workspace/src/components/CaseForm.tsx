@@ -90,6 +90,27 @@ export default function CaseForm({ caseId }: { caseId: string }) {
     </div>
   );
   const summaryCard = <div className="sec"><CopilotCard title="Case summary" text={c.summary} /></div>;
+  const incidentCard = c.incident ? (
+    <div className="sec">
+      <h3>Incident</h3>
+      <div className="nba">
+        <div className="h"><Sparkle20Filled style={{ color: "var(--copilot)" }} /> Incident Clustering Agent <span className={"pill " + (c.incident.confidence === "High" ? "green" : c.incident.confidence === "Medium" ? "amber" : "red")}>{c.incident.confidence} confidence</span><span className="pill">{c.incident.pay_group} · {c.incident.code}</span></div>
+        <div className="act">{c.incident.root_cause}</div>
+        {c.incident.action_plan?.length ? <ol className="plan">{c.incident.action_plan.map((a, i) => <li key={i}>{a}</li>)}</ol> : null}
+        {c.incident.employee_action && <div className="why">Employees: {c.incident.employee_action}</div>}
+        <div className="meta">Linked cases: {c.incident.affected.map(n => { const k = state.cases.find(x => x.number === n); return k ? <a key={n} onClick={() => dispatch({ type: "openCase", caseId: k.id, inSession: "current" })} style={{ marginRight: 8 }}>{n}</a> : <span key={n} style={{ marginRight: 8 }}>{n}</span>; })}{c.incident.client_notified_at ? ` · Client lead notified ${fmtTime(new Date(c.incident.client_notified_at))}` : " · Client lead not yet notified"}</div>
+      </div>
+    </div>
+  ) : c.verification ? (
+    <div className="sec">
+      <h3>Resolution verification</h3>
+      <div className={"nba" + (c.verification.outcome === "reopened" ? " alert" : "")}>
+        <div className="h"><Sparkle20Filled style={{ color: "var(--copilot)" }} /> Day-7 Resolution Verifier <span className={"pill " + (c.verification.outcome === "settled" ? "green" : c.verification.outcome === "on_track" ? "blue" : "red")}>{c.verification.outcome === "on_track" ? "On track" : c.verification.outcome === "settled" ? "Settled" : "Reopened"}</span></div>
+        <div className="act">{c.verification.detail}</div>
+        <div className="meta">Remedy: {c.remedy?.type?.replace("_", " ") ?? "—"}{c.remedy?.reference ? ` · ${c.remedy.reference}` : ""}{c.remedy?.expected_settlement ? ` · expected ${c.remedy.expected_settlement}` : ""} · checked {fmtDateTime(new Date(c.verification.checked_at))}</div>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="card" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -121,7 +142,7 @@ export default function CaseForm({ caseId }: { caseId: string }) {
         {(c.aiCreated || c.aiUpdated) && (
           <div className="aibanner">
             <Sparkle20Filled style={{ color: "var(--copilot)" }} />
-            <span>{c.aiCreated ? "Case Management Agent created this case" : "Case Management Agent updated this case"}{c.aiFields?.length ? ` and filled ${c.aiFields.length} fields` : ""}. <a>View audit history</a></span>
+            <span>{c.aiCreated ? `${c.createdBy ?? "Case Management Agent"} ${c.createdBy === "Pay Event Sentinel" ? "opened this case from the pay-event feed" : c.createdBy === "Incident Clustering Agent" ? "opened this incident" : "created this case"}` : c.verification?.outcome === "reopened" ? "Day-7 Resolution Verifier reopened this case" : "Case Management Agent updated this case"}{c.aiFields?.length ? ` and filled ${c.aiFields.length} fields` : ""}. <a>View audit history</a></span>
             <span className="sp">
               {suggestions && <Button size="small" appearance="primary" onClick={acceptAll}>Accept suggestions</Button>}
               <Tooltip content="Helpful" relationship="label"><button className="iconbtn" style={{ width: 26, height: 26 }}><ThumbLike16Regular /></button></Tooltip>
@@ -161,11 +182,11 @@ export default function CaseForm({ caseId }: { caseId: string }) {
           <>
             <div className="cols2" style={{ paddingTop: 4 }}>
               <div>{dueCard}{fields}</div>
-              <div>{summaryCard}</div>
+              <div>{summaryCard}{incidentCard}</div>
             </div>
             <Timeline c={c} />
           </>
-        ) : <>{dueCard}{fields}{summaryCard}<Timeline c={c} /></>)}
+        ) : <>{dueCard}{fields}{summaryCard}{incidentCard}<Timeline c={c} /></>)}
 
         {tab === "Details" && (
           <>
