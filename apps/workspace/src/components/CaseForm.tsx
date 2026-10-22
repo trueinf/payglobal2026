@@ -22,7 +22,7 @@ export default function CaseForm({ caseId }: { caseId: string }) {
   const [flyout, setFlyout] = useState(false);
   const [resolve, setResolve] = useState(false);
   const [refer, setRefer] = useState(false);
-  const runAgent = (agent: "variance" | "rules") => { dispatch({ type: "toast", text: agent === "variance" ? "Payslip Variance Explainer is reading the payslips…" : "State & Tax Rules Agent is checking the rules…" }); api.caseAgent(c.id, agent).catch(e => dispatch({ type: "toast", text: e.message })); };
+  const runAgent = (agent: "variance" | "rules" | "order") => { dispatch({ type: "toast", text: agent === "variance" ? "Payslip Variance Explainer is reading the payslips…" : agent === "order" ? "Garnishment Order Reader is reading the order…" : "State & Tax Rules Agent is checking the rules…" }); api.caseAgent(c.id, agent).catch(e => dispatch({ type: "toast", text: e.message })); };
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [assist, setAssist] = useState(false);
@@ -137,6 +137,7 @@ export default function CaseForm({ caseId }: { caseId: string }) {
             <MenuItem icon={<Sparkle16Filled />} onClick={() => setRefer(true)} disabled={resolved}>Refer to Strada Assist</MenuItem>
             <MenuItem icon={<Sparkle16Filled />} onClick={() => runAgent("variance")} disabled={resolved}>Explain payslip variance</MenuItem>
             <MenuItem icon={<Sparkle16Filled />} onClick={() => runAgent("rules")} disabled={resolved}>Check state &amp; tax rules</MenuItem>
+            <MenuItem icon={<Sparkle16Filled />} onClick={() => runAgent("order")} disabled={resolved}>Read garnishment order</MenuItem>
             <MenuItem icon={<Delete20Regular />}>Delete</MenuItem>
           </MenuList></MenuPopover>
         </Menu>

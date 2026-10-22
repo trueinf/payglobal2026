@@ -21,7 +21,7 @@ SPECS: list[dict] = [
          input_schema=dict(type="object", properties={}, required=[])),
     dict(name="explain_payslip", description="Get the most recent payslip with every earning, tax and deduction line, the net amount, and a line-by-line comparison against the previous payslip so differences can be explained. Requires verified identity.",
          input_schema=dict(type="object", properties={}, required=[])),
-    dict(name="update_bank_details", description="Update the employee's direct deposit bank account after they confirm the new routing and account numbers. Requires verified identity. Read the numbers back before calling.",
+    dict(name="update_bank_details", description="Update the employee's direct deposit bank account after they confirm the new routing and account numbers. Requires verified identity. Read the numbers back before calling. The Identity & Risk Agent checks the request: it may ask for a one-time code sent to the phone on file (then call verify_identity with the code and call this tool again), or hold the change for a representative call-back — in that case say so and offer to transfer.",
          input_schema=dict(type="object", properties=dict(routing=dict(type="string", description="9-digit ABA routing number"), account=dict(type="string", description="Account number")), required=["routing", "account"])),
     dict(name="create_case", description="Open a support case for the employee so Strada Payroll Support follows up. Call this when the issue needs action by payroll (a returned payment, a missing document, a correction) or the employee asks for a record of the request.",
          input_schema=dict(type="object", properties=dict(summary=dict(type="string", description="One or two sentences describing the issue and what has been established so far")), required=["summary"])),
@@ -44,11 +44,15 @@ def _money(v) -> str:
 # ---- tools ----
 async def verify_identity(conv: dict, a: dict) -> dict:
     ct = await _contact(conv)
+    from .agents import identity_risk as ir
     res = await strada.verify(ct["employee_id"], ssn_last4=a.get("ssn_last4"), otp=a.get("otp"))
     ok = bool(res.get("verified"))
     if ok:
         await db.execute("update conversations set verified = true, verify_method = %s where id = %s", res.get("method"), conv["id"])
-        conv["verified"] = True
+        conv["verified"] = True; conv["verify_method"] = res.get("method")
+        await ir.log(ct["id"], "step_up_ok" if (a.get("otp") and conv.get("risk")) else "verify_ok", conv["id"], conv["channel"], dict(method=res.get("method")))
+    else:
+        await ir.log(ct["id"], "verify_fail", conv["id"], conv["channel"], dict(method="ssn4" if a.get("ssn_last4") else "otp"))
     return dict(verified=ok, method=res.get("method"), employee_name=ct["name"], employer=ct["account_name"]) if ok else dict(verified=False, say="That didn't match what we have on file. Could you try again?")
 
 async def get_payment_status(conv: dict, a: dict) -> dict:
@@ -105,6 +109,16 @@ async def update_bank_details(conv: dict, a: dict) -> dict:
     routing, account = str(a.get("routing", "")).strip(), str(a.get("account", "")).strip()
     if len(routing) != 9 or not routing.isdigit(): return dict(error="invalid_routing", say="A routing number has nine digits. Could you read it to me again?")
     if len(account) < 4 or not account.isdigit(): return dict(error="invalid_account", say="That account number doesn't look right. Could you read it again?")
+    from .agents import identity_risk as ir
+    stepped = await db.one("select 1 from identity_events where contact_id = %s and conversation_id = %s and kind = 'step_up_ok' and at >= now() - interval '20 minutes'", ct["id"], conv["id"])
+    if not stepped:
+        risk = await ir.assess(conv, "update_bank_details", dict(routing=routing, account=account))
+        if risk["control"] == "hold":
+            await ir.log(ct["id"], "bank_change_blocked", conv["id"], conv["channel"], dict(risk=risk["risk"]))
+            return dict(error="held_for_review", risk=risk["risk"], say=risk["employee_message"], next="Offer to transfer to a representative; the change is held for a call-back on the number on file.")
+        if risk["control"] == "step_up":
+            await ir.log(ct["id"], "step_up_sent", conv["id"], conv["channel"], dict(risk=risk["risk"]))
+            return dict(error="step_up_required", risk=risk["risk"], say=risk["employee_message"], next="Ask for the six-digit code, call verify_identity with it, then call update_bank_details again.")
     res = await strada.update_bank(ct["employee_id"], routing, account)
     if res.get("error"): return dict(error=res["error"])
     await db.emit("employee.bank_updated", dict(contact_id=ct["id"], employee_id=ct["employee_id"], by=ASSISTANT, channel=conv["channel"]), "strada-pay")

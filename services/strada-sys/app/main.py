@@ -174,6 +174,13 @@ def timesheets(pay_group: str | None = None, status: str | None = None):
 def orders(employee_id: str):
     emp(employee_id); return db.GARNISHMENT_ORDERS.get(employee_id, [])
 
+@app.get("/garnishments/orders/{employee_id}/documents/{ref}")
+def order_document(employee_id: str, ref: str):
+    emp(employee_id)
+    doc = db.ORDER_DOCUMENTS.get(ref)
+    if not doc: raise HTTPException(404, "no document on file for this order")
+    return dict(ref=ref, employee_id=employee_id, text=doc)
+
 @app.get("/tax/documents/{employee_id}")
 def tax_docs(employee_id: str):
     emp(employee_id); return db.TAX_DOCUMENTS.get(employee_id, [])
@@ -243,7 +250,9 @@ async def set_assist_status(reference: str, status: str):
     raise HTTPException(404)
 
 @app.get("/audit")
-def get_audit(): return db.AUDIT[-200:]
+def get_audit(employee_id: str | None = None):
+    rows = db.AUDIT[-500:]
+    return [r for r in rows if r.get("employee_id") == employee_id] if employee_id else rows[-200:]
 
 @app.get("/health")
 def health(): return dict(ok=True, employees=len(db.EMPLOYEES), today=db.today.isoformat())

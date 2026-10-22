@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useReducer, useRef } from "react";
-import type { Activity, Alert, Case, KnowledgeArticle } from "./model";
+import type { Activity, Alert, Case, Insight, IntentReport, KnowledgeArticle, Quality, RiskAssessment } from "./model";
 import { OWNER } from "./data";
 import { api, connect } from "./api";
 
@@ -17,7 +17,7 @@ export interface Referral { id: number; caseId: string; requestType: string; sta
 export interface NBA { intent: string; stage: string; nextBestAction: string; rationale: string; risk: "Low" | "Medium" | "High"; intervene: boolean; interveneReason?: string; sentiment?: string; suggestedOpening?: string; }
 export type PaneTool = "copilot" | "scripts" | "knowledge";
 export interface Toast { id: number; text: string; kind?: "success" | "info"; }
-export interface Conversation { id: string; channel: "voice" | "chat"; state: "Assistant" | "Open" | "Active" | "Wrap-up" | "Closed"; customerId: string; caseId?: string | null; queueId: string | null; startedAt: Date; acceptedAt?: Date; endedAt?: Date; closedAt?: Date; waitingSeconds: number; sentiment: string; recording: boolean; dispositionCode?: string | null; notes: string; intent?: string | null; summary: string; verified?: boolean; verifyMethod?: string | null; transferredBy?: string | null; transferReason?: string | null; handledByAssistant?: boolean; assignedTo?: string | null; externalId?: string | null; nba?: NBA | null; nbaAt?: Date; }
+export interface Conversation { id: string; channel: "voice" | "chat"; state: "Assistant" | "Open" | "Active" | "Wrap-up" | "Closed"; customerId: string; caseId?: string | null; queueId: string | null; startedAt: Date; acceptedAt?: Date; endedAt?: Date; closedAt?: Date; waitingSeconds: number; sentiment: string; recording: boolean; dispositionCode?: string | null; notes: string; intent?: string | null; summary: string; verified?: boolean; verifyMethod?: string | null; transferredBy?: string | null; transferReason?: string | null; handledByAssistant?: boolean; assignedTo?: string | null; externalId?: string | null; nba?: NBA | null; nbaAt?: Date; risk?: RiskAssessment | null; quality?: Quality | null; }
 export interface TranscriptLine { id: number; conversationId: string; who: string; text: string; at: Date; }
 export interface AgentEvent { kind: string; agent: string; subjectId?: string; step?: string; detail?: string; tool?: string; output?: any; at: Date; runId: number; }
 
@@ -29,6 +29,8 @@ export interface AppState {
   conversations: Conversation[];
   alerts: Alert[];
   referrals: Referral[];
+  insights: Insight[];
+  intents: IntentReport | null;
   transcript: Record<string, TranscriptLine[]>;
   agentEvents: AgentEvent[];
   sessions: Session[];
@@ -51,6 +53,8 @@ type Action =
   | { type: "upsertConversation"; c: Conversation }
   | { type: "upsertAlert"; a: Alert }
   | { type: "upsertReferral"; r: Referral }
+  | { type: "upsertInsight"; i: Insight }
+  | { type: "setIntents"; r: IntentReport }
   | { type: "transcriptLine"; l: TranscriptLine }
   | { type: "agentEvent"; e: AgentEvent }
   | { type: "selectSession"; id: string }
@@ -82,7 +86,7 @@ export const nextId = (p = "x") => `${p}${++seq}`;
 
 const initial: AppState = {
   loaded: false, connected: false, llm: "",
-  cases: [], activities: [], articles: [], conversations: [], alerts: [], referrals: [], transcript: {}, agentEvents: [],
+  cases: [], activities: [], articles: [], conversations: [], alerts: [], referrals: [], insights: [], intents: null, transcript: {}, agentEvents: [],
   sessions: [
     { id: "home", kind: "home", title: "Home", tabs: [], activeTabId: null },
     { id: "inbox", kind: "inbox", title: "Inbox", tabs: [], activeTabId: null },
@@ -106,7 +110,7 @@ function reducer(s: AppState, a: Action): AppState {
       for (const c of cases) fs[c.id] = !!(c as any).suggestionsPending;
       const first = cases.find(c => c.status !== "Resolved");
       const sessions = s.sessions.map(se => se.id === "inbox" && first ? { ...se, tabs: [{ id: "inbox-" + first.id, kind: "case", caseId: first.id } as RecordTab], activeTabId: "inbox-" + first.id } : se);
-      return { ...s, loaded: true, llm: a.data.llm, cases, activities: a.data.activities, articles: a.data.articles, conversations: a.data.conversations ?? [], alerts: a.data.alerts ?? [], referrals: a.data.referrals ?? [], formSuggestions: fs, sessions, inboxSelectedCaseId: first?.id ?? null };
+      return { ...s, loaded: true, llm: a.data.llm, cases, activities: a.data.activities, articles: a.data.articles, conversations: a.data.conversations ?? [], alerts: a.data.alerts ?? [], referrals: a.data.referrals ?? [], insights: a.data.insights ?? [], intents: a.data.intents ?? null, formSuggestions: fs, sessions, inboxSelectedCaseId: first?.id ?? null };
     }
     case "connected": return { ...s, connected: a.value };
     case "upsertCase": return { ...s, cases: upsert(s.cases, a.c, true), formSuggestions: { ...s.formSuggestions, [a.c.id]: !!(a.c as any).suggestionsPending } };
@@ -115,6 +119,8 @@ function reducer(s: AppState, a: Action): AppState {
     case "upsertConversation": return { ...s, conversations: upsert(s.conversations, a.c, true) };
     case "upsertAlert": return { ...s, alerts: upsert(s.alerts, a.a, true) };
     case "upsertReferral": return { ...s, referrals: upsert(s.referrals, a.r, true) };
+    case "upsertInsight": return { ...s, insights: [a.i, ...s.insights.filter(x => x.accountId !== a.i.accountId)] };
+    case "setIntents": return { ...s, intents: a.r };
     case "transcriptLine": { const cur = s.transcript[a.l.conversationId] ?? []; return cur.some(x => x.id === a.l.id) ? s : { ...s, transcript: { ...s.transcript, [a.l.conversationId]: [...cur, a.l] } }; }
     case "agentEvent": return { ...s, agentEvents: [a.e, ...s.agentEvents].slice(0, 200) };
     case "selectSession": return { ...s, activeSessionId: a.id };
@@ -152,6 +158,11 @@ function reducer(s: AppState, a: Action): AppState {
     }
     case "setTranscript": { const cur = s.transcript[a.conversationId] ?? []; const seen = new Set(cur.map(l => l.id)); return { ...s, transcript: { ...s.transcript, [a.conversationId]: [...cur, ...a.lines.filter(l => !seen.has(l.id))].sort((x, y) => x.id - y.id) } }; }
     case "openTab": {
+      if (s.activeSessionId === "home") {   // from Home: open the record in its own session
+        const id = "s-" + a.tab.id; if (s.sessions.some(se => se.id === id)) return { ...s, activeSessionId: id };
+        const title = a.tab.kind === "account" ? "Account" : a.tab.kind === "contact" ? "Contact" : a.tab.kind === "article" ? "Article" : "Record";
+        return { ...s, sessions: [...s.sessions, { id, kind: "record", title, tabs: [a.tab], activeTabId: a.tab.id }], activeSessionId: id };
+      }
       const sessions = s.sessions.map(se => {
         if (se.id !== s.activeSessionId) return se;
         if (se.tabs.some(t => t.id === a.tab.id)) return { ...se, activeTabId: a.tab.id };
@@ -197,6 +208,11 @@ const AGENT_SUMMARY: Record<string, (o: any, sid?: string) => string> = {
   "Payslip Variance Explainer": o => o?.needs_correction ? `Payslip Variance Explainer: ${o.number} — a line looks wrong, correction needed` : `Payslip Variance Explainer explained ${o?.differences ?? ""} changes on ${o?.number ?? "the case"}`,
   "State & Tax Rules Agent": o => `State & Tax Rules Agent applied the rules on ${o?.number ?? "the case"}${o?.deadline ? ` · deadline ${o.deadline}` : ""}`,
   "Complete-Case Referral Agent": o => o?.reference ? `Referral ${o.reference} submitted to Strada Assist — complete package` : o?.missing?.length ? `Referral on ${o.number}: ${o.missing.length} item${o.missing.length > 1 ? "s" : ""} still missing` : `Referral package for ${o?.number ?? "the case"} is complete`,
+  "Identity & Risk Agent": o => `Identity & Risk Agent: ${o?.risk ?? ""} risk — ${o?.control === "hold" ? "change held for call-back" : o?.control === "step_up" ? "one-time code required" : "proceed"}`,
+  "Garnishment Order Reader": o => o?.refund_due ? `Garnishment Order Reader: ${o.relationship} of an existing order — refund $${Number(o.refund_due).toFixed(2)} due` : `Garnishment Order Reader read order ${o?.ref ?? ""} (${o?.relationship ?? ""})`,
+  "Quality Evaluation Agent": o => `Quality Evaluation: assistant ${o?.overall?.assistant ?? "n/a"}/5 · representative ${o?.overall?.representative ?? "n/a"}/5${o?.flags?.length ? ` · ${o.flags.length} flag(s)` : ""}`,
+  "Client Insight Agent": o => `Client Insight Agent wrote the brief for ${o?.account ?? "the client"} (${o?.recommendations ?? 0} recommendations)`,
+  "Customer Intent Agent": o => `Customer Intent Agent: ${o?.intents ?? 0} intents, ${o?.gaps ?? 0} gaps${o?.proposed ? `, ${o.proposed} proposed` : ""}`,
   "Next Best Action Agent": o => o?.intervene ? `Next Best Action Agent recommends a human take-over (${o.risk} risk)` : `Next Best Action Agent: ${o?.stage ?? "updated"}`,
   "Strada Pay assistant": o => o?.outcome === "transferred" ? "Strada Pay assistant handed over a conversation with context" : "Strada Pay assistant resolved a conversation",
   "Customer Knowledge Management Agent": o => (o?.articleId ?? o?.article_id) ? `Knowledge Management Agent drafted ${o.articleId ?? o.article_id} for review` : `Knowledge Management Agent: resolution already covered`,
@@ -236,6 +252,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         case "conversation.updated": rawDispatch({ type: "upsertConversation", c: data }); break;
         case "alert.created": rawDispatch({ type: "upsertAlert", a: data }); break;
         case "referral.updated": rawDispatch({ type: "upsertReferral", r: data }); break;
+        case "insight.created": rawDispatch({ type: "upsertInsight", i: { id: data.id, accountId: data.accountId, period: "", brief: data.brief, createdAt: new Date(data.createdAt ?? Date.now()) } }); break;
+        case "intents.updated": rawDispatch({ type: "setIntents", r: data }); break;
         case "transcript.line": rawDispatch({ type: "transcriptLine", l: data }); break;
         case "reset": api.bootstrap().then(d => rawDispatch({ type: "hydrate", data: d })); break;
         default:

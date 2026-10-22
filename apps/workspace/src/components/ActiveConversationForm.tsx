@@ -8,6 +8,7 @@ import { fmtDate, fmtDateTime, fmtTime } from "../util";
 import Subgrid from "./Subgrid";
 import Timeline from "./Timeline";
 import { Row, Val, Sel, mmss } from "./Form";
+import { RiskCard } from "./AgentFindings";
 
 const CATEGORIES: Record<string, string[]> = {
   "Pay Distribution": ["Bank return – live check issued", "Bank return – re-deposit", "Delay – client file late", "Employee bank details incorrect"],
@@ -95,6 +96,25 @@ export default function ActiveConversationForm({ conversationId, monitor = false
             )}
           </div>
         )}
+        {c.risk && <div className="sec"><h3>Identity &amp; risk</h3><RiskCard risk={c.risk} compact /></div>}
+        {closed && c.quality && (
+          <div className="sec">
+            <h3>Quality evaluation</h3>
+            <div className={"nba" + (c.quality.flags.length ? " alert" : "")}>
+              <div className="h"><Sparkle20Filled style={{ color: "var(--copilot)" }} /> Quality Evaluation Agent
+                {c.quality.overall.assistant != null && <span className="pill blue">Assistant {c.quality.overall.assistant}/5</span>}
+                {c.quality.overall.representative != null && <span className="pill green">Representative {c.quality.overall.representative}/5</span>}
+                {c.quality.flags.length ? <span className="pill red">{c.quality.flags.length} flag{c.quality.flags.length > 1 ? "s" : ""}</span> : null}</div>
+              <div className="act">{c.quality.summary}</div>
+              <table className="vt"><thead><tr><th>Criterion</th><th>Assistant</th><th>Representative</th><th>Evidence</th></tr></thead>
+                <tbody>{c.quality.scores.map((x, i) => <tr key={i}><td>{x.criterion}</td><td>{x.assistant ?? "n/a"}</td><td>{x.representative ?? "n/a"}</td><td>{x.evidence}</td></tr>)}</tbody></table>
+              {c.quality.coaching.length ? <><div className="why" style={{ marginTop: 8 }}><b>Coaching</b></div><ul className="plan" style={{ listStyle: "disc" }}>{c.quality.coaching.map((x, i) => <li key={i}>{x}</li>)}</ul></> : null}
+              {c.quality.flags.length ? <div className="warn">Flags: {c.quality.flags.join("; ")}</div> : null}
+              <div className="meta">Evaluated {fmtDateTime(new Date(c.quality.at))}</div>
+            </div>
+          </div>
+        )}
+        {closed && !c.quality && <div className="sec"><Button size="small" icon={<Sparkle20Filled />} onClick={() => api.evaluate(c.id).catch(() => {})}>Evaluate conversation quality</Button></div>}
         <div className="sec">
           <h3>Customer</h3>
           <div className="ecard">
