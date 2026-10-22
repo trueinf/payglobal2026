@@ -36,6 +36,7 @@ Variant: "I want to update my bank details" → the assistant takes the new rout
 
 ### Dana Whitfield · Luis Ortega · Keisha Brown — Meridian · BW-NUR · SSN 3310 / 7742 / 5521
 **The other three in the incident.** Each has an open R03 case linked to CAS‑10490‑INC07. Use one of them to show that the assistant already knows: "Where is my money?" → verify → "a case is already open for this; payroll is working on it; the money is safe." No new case is created; the conversation is linked to the existing one. In the workspace the incident case shows all four.
+This is also the place to show the out-of-the-box boundary: "a case is already open" comes from D365 (a Copilot Studio agent reading Dataverse could say that alone); "your deposit was returned, code R03, the money is safe" comes from the Strada payroll tools — the part only the Strada-specific first responder can do.
 
 ### Jordan Lee · Maria Santos · Derek Cole — Harbor Point Logistics · BW-OPS · SSN 1175 / 3321 / 7745
 **Prevention — told before they called.** Do nothing in Strada Pay first. In the workspace: Prevention dashboard → `Ctrl/Cmd+Shift+D` → *Bank return file lands*. Within a minute: four cases opened by the Pay Event Sentinel, four notifications, the incident clustered ("all four share routing 021200339 — bank-side, not employee error"), Nina Patel notified once.
