@@ -2,6 +2,12 @@
 
 Kept during the screen walkthrough. "Standard" = ships with Dynamics 365 Customer Service / Copilot Service workspace (incl. the voice and messaging channels and Copilot). "Configuration" = standard mechanism, Strada data (queues, scripts, articles, dashboards). "Added" = built for Strada in this prototype (the agents and what shows their work).
 
+## 0. The two apps
+
+**Copilot Service workspace** (`apps/workspace`) replicates Dynamics 365 Customer Service as shipped; the tables below mark what Strada added on top.
+
+**Strada Pay** (`apps/strada-pay`) is **not Dynamics 365**. It stands in for Strada's employee self-service portal — where employees already see payslips — with chat and call embedded. In a Microsoft-only build the equivalents are: the D365 chat widget embedded in the portal with a Copilot Studio agent answering first; the D365 voice channel (Azure Communication Services number, IVR, Copilot Studio voice agent). The prototype uses the Strada Pay assistant (Claude + six tools, runtime) for chat and an ElevenLabs Conversational AI agent with the same tools for voice — same shape (assistant first, transfer with context, representative in the workspace), different engine. The agents' tools, prompts and rules carry over either way; the plumbing differs. The notifications on the Strada Pay home (bank return, payment settled, timesheet cut-off) are ours; in production they are SMS/email/portal messages sent by the agents. Everything the conversations write into D365 — cases, timeline, transcripts, queues, the Active Conversation form — is the standard side.
+
 ## 1. Omnichannel Ongoing Conversations Dashboard (Home)
 
 | Element | Status | Note |
