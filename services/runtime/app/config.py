@@ -12,5 +12,7 @@ class Settings(BaseSettings):
     replay: bool = False
     owner: str = "Priya Natarajan"
     cors_origins: str = "*"
+    demo_secret: str | None = None          # set in hosted environments; the workspace sends it as x-demo-secret
+    migrate_on_start: bool = False          # hosted: apply packages/schema/migrations/*.sql and seed when the schema is empty
 
 settings = Settings()

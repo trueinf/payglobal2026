@@ -85,3 +85,16 @@ def jsonable(v, camelize: bool = False):
     if isinstance(v, dict): return {(camel(k) if camelize else k): (jsonable(x, False) if camelize and k in RAW_BLOBS else jsonable(x, camelize)) for k, x in v.items()}
     if isinstance(v, list): return [jsonable(x, camelize) for x in v]
     return v
+
+async def migrate():
+    """Apply every migration file (all are idempotent) and seed when there are no cases yet."""
+    import glob, os, subprocess, sys
+    base = next((p for p in (os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages", "schema"), os.path.join(os.path.dirname(__file__), "..", "packages", "schema")) if os.path.isdir(p)), None)
+    if not base: print("migrate: schema folder not found"); return
+    async with pool.connection() as c:
+        for f in sorted(glob.glob(os.path.join(base, "migrations", "*.sql"))):
+            await c.execute(open(f).read()); print("migrated", os.path.basename(f))
+        await c.commit()
+    n = await one("select count(*) as n from cases")
+    if n["n"] == 0:
+        subprocess.run([sys.executable, os.path.join(base, "seed.py"), "--dsn", settings.database_url], check=True); print("seeded")
